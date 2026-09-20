@@ -1,0 +1,17 @@
+src/core/secrets/
+birid/secrets/
+old
+
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+.env
+.venv
+
+.agents
+.codex
+.pytest_cache
