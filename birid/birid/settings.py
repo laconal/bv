@@ -9,7 +9,11 @@ import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-load_dotenv(BASE_DIR / ".env")
+# .env lives at the repo root (BASE_DIR.parent) - alongside pyproject.toml
+# and docker-compose.yaml, not inside the Django project itself. Secrets/
+# JWT key paths (below) stay resolved against BASE_DIR though, since that's
+# still the Django project's own directory both locally and in the container.
+load_dotenv(BASE_DIR.parent / ".env")
 
 SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 
@@ -81,6 +85,13 @@ DATABASES = {
         "PASSWORD": os.environ["DB_PASSWORD"],
         "HOST": os.environ["DB_HOST"],
         "PORT": os.environ["DB_PORT"],
+        # DB_HOST/DB_PORT point at pgbouncer (POOL_MODE=transaction), not
+        # postgres directly - a server-side cursor can outlive the single
+        # pooled backend connection it was opened on, so Django must not use
+        # them. CONN_MAX_AGE is left at 0 (the default): pgbouncer already
+        # pools connections, Django holding its own persistent ones on top
+        # would just double up the pooling for no benefit.
+        "DISABLE_SERVER_SIDE_CURSORS": True,
     }
 }
 
