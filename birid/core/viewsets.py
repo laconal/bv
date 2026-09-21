@@ -19,14 +19,14 @@ CREATED_AT_FILTER_EXAMPLE = {
 }
 
 
-class NoPutModelViewSet(viewsets.ModelViewSet):
+class GetAllListMixin:
     """
-    ModelViewSet without full-update PUT (only partial-update PATCH), and
-    with GET .../ (list) replaced by POST .../get-all: filters can get large
-    (see core/filtering.py), and those belong in a body, not a query string.
+    GET .../ (list) replaced by POST .../get-all: filters can get large (see
+    core/filtering.py), and those belong in a body, not a query string.
+    Shared by NoPutModelViewSet (store-admin CRUD) and PublicReadOnlyViewSet
+    (unauthenticated marketplace browsing) - both need identical filter +
+    pagination behavior, just a different write-permission surface on top.
     """
-
-    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
 
     @extend_schema(exclude=True)
     def list(self, request, *args, **kwargs):
@@ -44,6 +44,22 @@ class NoPutModelViewSet(viewsets.ModelViewSet):
             "totalPages": result["totalPages"],
             "total": result["total"],
         })
+
+
+class NoPutModelViewSet(GetAllListMixin, viewsets.ModelViewSet):
+    """ModelViewSet without full-update PUT (only partial-update PATCH) - see GetAllListMixin for the list side."""
+
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
+
+
+class PublicReadOnlyViewSet(GetAllListMixin, viewsets.ReadOnlyModelViewSet):
+    """
+    Unauthenticated read-only browsing (retrieve + get-all only, no
+    create/update/delete) - marketplace visitors don't need an account to
+    see store/product info. See GetAllListMixin for the list side.
+    """
+
+    http_method_names = ["get", "post", "head", "options"]
 
 
 def paginated_serializer(item_serializer_class):
@@ -67,11 +83,14 @@ def paginated_serializer(item_serializer_class):
     })
 
 
-def tagged(tag: str, serializer_class, filters_example: dict | None = None):
+_WRITABLE_ACTIONS = ("create", "retrieve", "update", "partial_update", "destroy")
+
+
+def tagged(tag: str, serializer_class, filters_example: dict | None = None, *, actions=_WRITABLE_ACTIONS):
     """
     Puts every CRUD action of a viewset (get_all included) under one explicit
     Swagger tag, and documents get_all's actual response shape (see
-    _paginated_serializer - without this it falls back to describing get_all
+    paginated_serializer - without this it falls back to describing get_all
     as returning one bare `serializer_class` instance, not the paginated
     envelope it actually returns).
 
@@ -79,6 +98,11 @@ def tagged(tag: str, serializer_class, filters_example: dict | None = None):
     matching its ALLOWED_FILTERS) to show a concrete example request body -
     Swagger otherwise has no way to know `filters` is a free-form dict whose
     keys/value-shapes depend on which resource this is.
+
+    `actions` is the set of non-get_all actions to tag - defaults to the full
+    writable CRUD set, but a read-only viewset (see public_tagged below) only
+    has `retrieve`, and extend_schema_view errors if asked to wrap an action
+    the viewset doesn't define.
     """
     scoped = extend_schema(tags=[tag])
 
@@ -98,7 +122,11 @@ def tagged(tag: str, serializer_class, filters_example: dict | None = None):
         ]
     get_all_scoped = extend_schema(**get_all_kwargs)
 
-    return extend_schema_view(
-        create=scoped, retrieve=scoped, update=scoped, partial_update=scoped, destroy=scoped,
-        get_all=get_all_scoped,
-    )
+    schema_view_kwargs = {action_name: scoped for action_name in actions}
+    schema_view_kwargs["get_all"] = get_all_scoped
+    return extend_schema_view(**schema_view_kwargs)
+
+
+def public_tagged(tag: str, serializer_class, filters_example: dict | None = None):
+    """Like `tagged()`, but for PublicReadOnlyViewSet - only `retrieve` and `get_all` exist, no write actions."""
+    return tagged(tag, serializer_class, filters_example, actions=("retrieve",))

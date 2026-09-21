@@ -19,7 +19,7 @@ class NewsStatus(models.TextChoices):
 
 
 class StoreNews(TimestampedModel):
-    ALLOWED_FILTERS = {"title", "news_type", "status", "created_at"}
+    ALLOWED_FILTERS = {"store", "title", "news_type", "status", "created_at"}
 
     store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name="news")
 

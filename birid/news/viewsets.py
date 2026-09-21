@@ -5,7 +5,7 @@ from .models import StoreNews
 from .serializers import StoreNewsSerializer
 
 
-@tagged("store-admin-news", StoreNewsSerializer, filters_example={
+@tagged("stores-news", StoreNewsSerializer, filters_example={
     "title": "Скидки к сезону",
     "news_type": "discount",
     "status": "active",

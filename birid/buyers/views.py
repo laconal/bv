@@ -44,7 +44,7 @@ class BuyerLoginView(APIView):
         request=LoginRequestSerializer,
         responses=TokenPairResponseSerializer,
         summary="Buyer login",
-        tags=["Buyer auth"],
+        tags=["customers-auth"],
     )
     def post(self, request):
         serializer = LoginRequestSerializer(data=request.data)
@@ -65,7 +65,7 @@ class BuyerMeView(APIView):
     authentication_classes = [BuyerJWTAuthentication]
     permission_classes = [IsAuthenticated]
 
-    @extend_schema(responses=BuyerMeSerializer, summary="Current buyer", tags=["Buyer auth"])
+    @extend_schema(responses=BuyerMeSerializer, summary="Current buyer", tags=["customers-auth"])
     def get(self, request):
         return Response(BuyerMeSerializer(request.user).data)
 
@@ -73,7 +73,7 @@ class BuyerMeView(APIView):
         request=BuyerUpdateSerializer,
         responses=BuyerMeSerializer,
         summary="Update current buyer",
-        tags=["Buyer auth"],
+        tags=["customers-auth"],
     )
     def patch(self, request):
         buyer = request.user
@@ -98,7 +98,7 @@ class BuyerRefreshView(APIView):
         request=RefreshRequestSerializer,
         responses=TokenPairResponseSerializer,
         summary="Buyer token refresh",
-        tags=["Buyer auth"],
+        tags=["customers-auth"],
     )
     def post(self, request):
         serializer = RefreshRequestSerializer(data=request.data)
@@ -123,7 +123,7 @@ class BuyerFavoriteProductView(APIView):
 
     @extend_schema(
         request=None, responses={200: _FAVORITE_ADDED_RESPONSE},
-        summary="Add product to favorites", tags=["Buyer favorites"],
+        summary="Add product to favorites", tags=["customers-favorites"],
     )
     def post(self, request, product_id):
         product = get_object_or_404(StoreProduct, id=product_id)
@@ -132,7 +132,7 @@ class BuyerFavoriteProductView(APIView):
 
     @extend_schema(
         request=None, responses={200: _FAVORITE_REMOVED_RESPONSE},
-        summary="Remove product from favorites", tags=["Buyer favorites"],
+        summary="Remove product from favorites", tags=["customers-favorites"],
     )
     def delete(self, request, product_id):
         product = get_object_or_404(StoreProduct, id=product_id)
@@ -146,7 +146,7 @@ class BuyerFavoriteStoreView(APIView):
 
     @extend_schema(
         request=None, responses={200: _FAVORITE_ADDED_RESPONSE},
-        summary="Add store to favorites", tags=["Buyer favorites"],
+        summary="Add store to favorites", tags=["customers-favorites"],
     )
     def post(self, request, store_id):
         store = get_object_or_404(Store, id=store_id)
@@ -155,7 +155,7 @@ class BuyerFavoriteStoreView(APIView):
 
     @extend_schema(
         request=None, responses={200: _FAVORITE_REMOVED_RESPONSE},
-        summary="Remove store from favorites", tags=["Buyer favorites"],
+        summary="Remove store from favorites", tags=["customers-favorites"],
     )
     def delete(self, request, store_id):
         store = get_object_or_404(Store, id=store_id)
@@ -173,7 +173,7 @@ class BuyerFavoriteProductListView(APIView):
         request=PageRequestSerializer,
         responses=paginated_serializer(FavoriteProductSerializer),
         summary="List favorite products (paginated)",
-        tags=["Buyer favorites"],
+        tags=["customers-favorites"],
     )
     def post(self, request):
         result = paginate_body(
@@ -198,7 +198,7 @@ class BuyerFavoriteStoreListView(APIView):
         request=PageRequestSerializer,
         responses=paginated_serializer(StoreSerializer),
         summary="List favorite stores (paginated)",
-        tags=["Buyer favorites"],
+        tags=["customers-favorites"],
     )
     def post(self, request):
         result = paginate_body(

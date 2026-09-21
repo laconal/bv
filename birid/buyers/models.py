@@ -46,8 +46,14 @@ class Buyer(AbstractAuthAccount):
         max_length=20, choices=BuyerAvatarProcessingStatus.choices, null=True, blank=True, default=None,
     )
 
+    # through=BuyerFavoriteProduct (not a bare M2M) so each favorite carries
+    # a created_at - the "most favorited products" report (products/reports.py)
+    # needs to count favorites within an arbitrary date range, not just the
+    # current total. add()/remove() work unchanged: the through model has no
+    # required fields beyond the two FKs.
     favorite_products = models.ManyToManyField(
         "products.StoreProduct", related_name="favorited_by_buyers", blank=True,
+        through="BuyerFavoriteProduct",
     )
     favorite_stores = models.ManyToManyField(
         "stores.Store", related_name="favorited_by_buyers", blank=True,
@@ -59,3 +65,14 @@ class Buyer(AbstractAuthAccount):
 
     def __str__(self) -> str:
         return f"{self.last_name} {self.first_name}".strip()
+
+
+class BuyerFavoriteProduct(models.Model):
+    buyer = models.ForeignKey(Buyer, on_delete=models.CASCADE)
+    product = models.ForeignKey("products.StoreProduct", on_delete=models.CASCADE, related_name="favorite_events")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["buyer", "product"], name="uniq_buyer_favorite_product"),
+        ]

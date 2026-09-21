@@ -1,5 +1,5 @@
 from django.urls import path
-from rest_framework.routers import DefaultRouter
+from rest_framework.routers import SimpleRouter
 
 from .store_views import StoreView
 from .viewsets import (
@@ -11,7 +11,7 @@ from .viewsets import (
     StoreSocialLinkViewSet,
 )
 
-router = DefaultRouter()
+router = SimpleRouter()
 router.register("social-links", StoreSocialLinkViewSet, basename="store-social-link")
 router.register("addresses", StoreAddressViewSet, basename="store-address")
 router.register("contacts", StoreContactViewSet, basename="store-contact")

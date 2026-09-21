@@ -29,7 +29,7 @@ class StoreAdminLoginView(APIView):
         request=LoginRequestSerializer,
         responses=TokenPairResponseSerializer,
         summary="Store admin login",
-        tags=["Store admin auth"],
+        tags=["stores-auth"],
     )
     def post(self, request):
         serializer = LoginRequestSerializer(data=request.data)
@@ -51,7 +51,7 @@ class StoreAdminMeView(APIView):
     @extend_schema(
         responses=StoreAdminMeSerializer,
         summary="Current store admin",
-        tags=["Store admin auth"],
+        tags=["stores-auth"],
     )
     def get(self, request):
         return Response(StoreAdminMeSerializer(request.user).data)
@@ -65,7 +65,7 @@ class StoreAdminRefreshView(APIView):
         request=RefreshRequestSerializer,
         responses=TokenPairResponseSerializer,
         summary="Store admin token refresh",
-        tags=["Store admin auth"],
+        tags=["stores-auth"],
     )
     def post(self, request):
         serializer = RefreshRequestSerializer(data=request.data)

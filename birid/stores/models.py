@@ -10,6 +10,8 @@ HEX_COLOR_VALIDATOR = RegexValidator(
 
 
 class Store(models.Model):
+    ALLOWED_FILTERS = {"name", "created_at"}
+
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, default="")
 

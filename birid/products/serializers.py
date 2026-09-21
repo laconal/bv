@@ -1,8 +1,12 @@
 from decimal import Decimal
 
+from django.db.models import Q
+from django.utils import timezone
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from .models import (
+    DiscountStatus,
     DiscountType,
     StoreCategory,
     StoreDiscount,
@@ -99,6 +103,7 @@ class ProductVariantReadSerializer(serializers.ModelSerializer):
 
 class StoreProductSerializer(serializers.ModelSerializer):
     variants = ProductVariantWriteSerializer(many=True, required=False, write_only=True)
+    in_customers_saved = serializers.SerializerMethodField()
 
     class Meta:
         model = StoreProduct
@@ -107,6 +112,7 @@ class StoreProductSerializer(serializers.ModelSerializer):
             "tags", "color", "size",
             "price_sale", "price_rental", "price_tailoring",
             "is_sellable", "is_rentable", "blur_image_in_site",
+            "views", "in_customers_saved",
             "variants",
             "created_at", "updated_at",
         ]
@@ -117,6 +123,10 @@ class StoreProductSerializer(serializers.ModelSerializer):
             instance.variants.all(), many=True, context=self.context,
         ).data
         return data
+
+    @extend_schema_field(serializers.IntegerField())
+    def get_in_customers_saved(self, obj):
+        return obj.favorited_by_buyers.count()
 
     def validate_variants(self, value):
         request = self.context["request"]
@@ -192,6 +202,59 @@ class StoreProductResponseSerializer(StoreProductSerializer):
     """
 
     variants = ProductVariantReadSerializer(many=True, read_only=True)
+
+
+class PublicProductDiscountSerializer(serializers.ModelSerializer):
+    """
+    A currently-active discount applied to one product, from the buyer's
+    point of view - discount_type/value are per-product (see
+    StoreDiscountProduct), the rest comes from the parent StoreDiscount.
+    """
+
+    title = serializers.CharField(source="discount.title")
+    description = serializers.CharField(source="discount.description")
+    starts_at = serializers.DateTimeField(source="discount.starts_at")
+    ends_at = serializers.DateTimeField(source="discount.ends_at")
+
+    class Meta:
+        model = StoreDiscountProduct
+        fields = ["id", "discount", "title", "description", "discount_type", "value", "starts_at", "ends_at"]
+
+
+class PublicProductSerializer(serializers.ModelSerializer):
+    """Unauthenticated storefront view of a product - read-only, so `variants` can just be its real read shape directly."""
+
+    variants = ProductVariantReadSerializer(many=True, read_only=True)
+    discounts = serializers.SerializerMethodField()
+    in_customers_saved = serializers.SerializerMethodField()
+
+    class Meta:
+        model = StoreProduct
+        fields = [
+            "id", "store", "name", "category", "subcategory", "description", "brand", "manufacture", "material",
+            "slug", "tags", "color", "size",
+            "price_sale", "price_rental", "price_tailoring",
+            "is_sellable", "is_rentable", "blur_image_in_site",
+            "views", "in_customers_saved",
+            "variants", "discounts",
+            "created_at", "updated_at",
+        ]
+
+    @extend_schema_field(serializers.IntegerField())
+    def get_in_customers_saved(self, obj):
+        return obj.favorited_by_buyers.count()
+
+    @extend_schema_field(PublicProductDiscountSerializer(many=True))
+    def get_discounts(self, obj):
+        now = timezone.now()
+        live = obj.product_discounts.filter(
+            discount__status=DiscountStatus.ACTIVE,
+        ).filter(
+            Q(discount__starts_at__isnull=True) | Q(discount__starts_at__lte=now),
+        ).filter(
+            Q(discount__ends_at__isnull=True) | Q(discount__ends_at__gte=now),
+        ).select_related("discount")
+        return PublicProductDiscountSerializer(live, many=True).data
 
 
 class DiscountProductSerializer(serializers.ModelSerializer):

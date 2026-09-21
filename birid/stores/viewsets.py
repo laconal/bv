@@ -32,7 +32,7 @@ class StoreScopedModelViewSet(NoPutModelViewSet):
         serializer.save(store=self.request.user.store)
 
 
-@tagged("store-admin-social-links", StoreSocialLinkSerializer, filters_example={
+@tagged("stores-social-links", StoreSocialLinkSerializer, filters_example={
     "platform": "instagram",
     "nickname": "store1_ig",
     "visible": True,
@@ -43,7 +43,7 @@ class StoreSocialLinkViewSet(StoreScopedModelViewSet):
     serializer_class = StoreSocialLinkSerializer
 
 
-@tagged("store-admin-addresses", StoreAddressSerializer, filters_example={
+@tagged("stores-addresses", StoreAddressSerializer, filters_example={
     "name": "Главный офис",
     "address": "ул. Ленина, 1",
     "landmark": "рядом с ТЦ Атриум",
@@ -56,7 +56,7 @@ class StoreAddressViewSet(StoreScopedModelViewSet):
     serializer_class = StoreAddressSerializer
 
 
-@tagged("store-admin-contacts", StoreContactSerializer, filters_example={
+@tagged("stores-contacts", StoreContactSerializer, filters_example={
     "name": "Иван",
     "role": "Менеджер",
     "phone": "+79990001122",
@@ -69,7 +69,7 @@ class StoreContactViewSet(StoreScopedModelViewSet):
     serializer_class = StoreContactSerializer
 
 
-@tagged("store-admin-services", StoreServiceSerializer, filters_example={
+@tagged("stores-services", StoreServiceSerializer, filters_example={
     "title": "Пошив",
     "icon": 1,
     "kicker": "Быстро",
@@ -81,7 +81,7 @@ class StoreServiceViewSet(StoreScopedModelViewSet):
     serializer_class = StoreServiceSerializer
 
 
-@tagged("store-admin-colors", StoreColorSerializer, filters_example={
+@tagged("stores-colors", StoreColorSerializer, filters_example={
     "name": "Красный",
     "hex_code": "#FF0000",
     "created_at": CREATED_AT_FILTER_EXAMPLE,
@@ -91,7 +91,7 @@ class StoreColorViewSet(StoreScopedModelViewSet):
     serializer_class = StoreColorSerializer
 
 
-@tagged("store-admin-icons", IconSerializer, filters_example={"name": "shirt"})
+@tagged("stores-icons", IconSerializer, filters_example={"name": "shirt"})
 class IconViewSet(NoPutModelViewSet):
     """
     Global catalog (not store-scoped - no `store` field on Icon). Any

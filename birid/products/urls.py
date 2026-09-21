@@ -1,4 +1,4 @@
-from rest_framework.routers import DefaultRouter
+from rest_framework.routers import SimpleRouter
 
 from .viewsets import (
     StoreCategoryViewSet,
@@ -9,7 +9,7 @@ from .viewsets import (
     StoreTagViewSet,
 )
 
-router = DefaultRouter()
+router = SimpleRouter()
 router.register("categories", StoreCategoryViewSet, basename="store-category")
 router.register("tags", StoreTagViewSet, basename="store-tag")
 router.register("products", StoreProductViewSet, basename="store-product")

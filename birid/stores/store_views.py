@@ -13,7 +13,7 @@ class StoreView(APIView):
     authentication_classes = [StoreAdminJWTAuthentication]
     permission_classes = [IsAuthenticated]
 
-    @extend_schema(responses=StoreSerializer, summary="Current store", tags=["store-admin-store"])
+    @extend_schema(responses=StoreSerializer, summary="Current store", tags=["stores-store"])
     def get(self, request):
         return Response(StoreSerializer(request.user.store).data)
 
@@ -21,7 +21,7 @@ class StoreView(APIView):
         request=StoreUpdateSerializer,
         responses=StoreSerializer,
         summary="Update current store",
-        tags=["store-admin-store"],
+        tags=["stores-store"],
     )
     def patch(self, request):
         store = request.user.store

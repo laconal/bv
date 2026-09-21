@@ -25,3 +25,13 @@ class StoreNewsSerializer(serializers.ModelSerializer):
         if starts_at is not None and ends_at is not None and ends_at < starts_at:
             raise serializers.ValidationError({"ends_at": "Must not be earlier than starts_at."})
         return attrs
+
+
+class PublicStoreNewsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StoreNews
+        fields = [
+            "id", "store", "title", "news_type", "slug", "description",
+            "starts_at", "ends_at", "status", "products",
+            "created_at", "updated_at",
+        ]

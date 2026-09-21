@@ -83,7 +83,7 @@ class StoreTag(TimestampedModel):
 
 class StoreProduct(TimestampedModel):
     ALLOWED_FILTERS = {
-        "name", "category", "subcategory", "brand", "manufacture", "material",
+        "store", "name", "category", "subcategory", "brand", "manufacture", "material",
         "tags", "color", "size", "price_sale", "price_rental", "price_tailoring",
         "is_sellable", "is_rentable", "blur_image_in_site", "created_at",
     }
@@ -118,6 +118,11 @@ class StoreProduct(TimestampedModel):
     is_rentable = models.BooleanField(default=False)
     blur_image_in_site = models.BooleanField(default=False)
 
+    # Incremented only when GET .../public/products/{id}/ is hit by an
+    # authenticated buyer (see products/public_viewsets.py) - anonymous
+    # browsing and store-admin access don't count.
+    views = models.PositiveIntegerField(default=0, editable=False)
+
     class Meta(TimestampedModel.Meta):
         constraints = [
             models.UniqueConstraint(fields=["store", "slug"], name="uniq_product_slug_per_store"),
@@ -125,6 +130,24 @@ class StoreProduct(TimestampedModel):
 
     def __str__(self) -> str:
         return self.name
+
+
+class StoreProductView(TimestampedModel):
+    """
+    One row per authenticated-buyer view of a product (see
+    products/public_viewsets.py's retrieve()) - StoreProduct.views is a
+    cheap lifetime running total, this is what lets the reports (see
+    products/reports.py) count views within an arbitrary date range.
+    """
+
+    store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name="product_views")
+    product = models.ForeignKey(StoreProduct, on_delete=models.CASCADE, related_name="view_events")
+
+    class Meta(TimestampedModel.Meta):
+        indexes = [models.Index(fields=["product", "created_at"])]
+
+    def __str__(self) -> str:
+        return f"view of {self.product_id} at {self.created_at}"
 
 
 class RenditionQuality(models.TextChoices):

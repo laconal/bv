@@ -27,7 +27,7 @@ from .serializers import (
 from .tasks import generate_photo_renditions, process_category_cover
 
 
-@tagged("store-admin-categories", StoreCategorySerializer, filters_example={
+@tagged("stores-categories", StoreCategorySerializer, filters_example={
     "name": "Платья",
     "parent": 1,
     "created_at": CREATED_AT_FILTER_EXAMPLE,
@@ -51,7 +51,7 @@ class StoreCategoryViewSet(StoreScopedModelViewSet):
             process_category_cover.delay(category.id)
 
 
-@tagged("store-admin-tags", StoreTagSerializer, filters_example={
+@tagged("stores-tags", StoreTagSerializer, filters_example={
     "name": "Новинка",
     "created_at": CREATED_AT_FILTER_EXAMPLE,
 })
@@ -71,7 +71,7 @@ class StoreTagViewSet(StoreScopedModelViewSet):
     update=extend_schema(responses=StoreProductResponseSerializer),
     partial_update=extend_schema(responses=StoreProductResponseSerializer),
 )
-@tagged("store-admin-products", StoreProductResponseSerializer, filters_example={
+@tagged("stores-products", StoreProductResponseSerializer, filters_example={
     "name": "Платье",
     "category": 1,
     "subcategory": 2,
@@ -94,7 +94,7 @@ class StoreProductViewSet(StoreScopedModelViewSet):
     serializer_class = StoreProductSerializer
 
 
-@tagged("store-admin-product-variants", StoreProductVariantSerializer, filters_example={
+@tagged("stores-product-variants", StoreProductVariantSerializer, filters_example={
     "product": 5,
     "created_at": CREATED_AT_FILTER_EXAMPLE,
 })
@@ -103,7 +103,7 @@ class StoreProductVariantViewSet(StoreScopedModelViewSet):
     serializer_class = StoreProductVariantSerializer
 
 
-@tagged("store-admin-discounts", StoreDiscountSerializer, filters_example={
+@tagged("stores-discounts", StoreDiscountSerializer, filters_example={
     "title": "Осенняя скидка",
     "starts_at": {"gte": "2026-10-01T00:00:00Z"},
     "ends_at": {"lte": "2026-10-31T23:59:59Z"},
@@ -115,7 +115,7 @@ class StoreDiscountViewSet(StoreScopedModelViewSet):
     serializer_class = StoreDiscountSerializer
 
 
-@tagged("store-admin-product-photos", StoreProductPhotoSerializer, filters_example={
+@tagged("stores-product-photos", StoreProductPhotoSerializer, filters_example={
     "original_filename": "photo.jpg",
     "processing_status": "ready",
     "created_at": CREATED_AT_FILTER_EXAMPLE,
@@ -129,7 +129,7 @@ class StoreProductPhotoViewSet(StoreScopedModelViewSet):
         generate_photo_renditions.delay(photo.id)
 
     @extend_schema(
-        tags=["store-admin-product-photos"],
+        tags=["stores-product-photos"],
         responses={200: OpenApiTypes.BINARY},
         summary="Download photo file",
     )
