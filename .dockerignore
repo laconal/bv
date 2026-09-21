@@ -1,0 +1,10 @@
+.git
+.venv
+.env
+birid/secrets/
+birid/**/__pycache__/
+birid/**/*.pyc
+birid/**/migrations/__pycache__/
+examples/
+README.md
+celerybeat-schedule
