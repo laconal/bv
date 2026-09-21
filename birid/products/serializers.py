@@ -1,12 +1,10 @@
 from decimal import Decimal
 
-from django.db.models import Q
-from django.utils import timezone
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from .discounts import active_discount_products
 from .models import (
-    DiscountStatus,
     DiscountType,
     StoreCategory,
     StoreDiscount,
@@ -246,15 +244,7 @@ class PublicProductSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(PublicProductDiscountSerializer(many=True))
     def get_discounts(self, obj):
-        now = timezone.now()
-        live = obj.product_discounts.filter(
-            discount__status=DiscountStatus.ACTIVE,
-        ).filter(
-            Q(discount__starts_at__isnull=True) | Q(discount__starts_at__lte=now),
-        ).filter(
-            Q(discount__ends_at__isnull=True) | Q(discount__ends_at__gte=now),
-        ).select_related("discount")
-        return PublicProductDiscountSerializer(live, many=True).data
+        return PublicProductDiscountSerializer(active_discount_products(obj), many=True).data
 
 
 class DiscountProductSerializer(serializers.ModelSerializer):

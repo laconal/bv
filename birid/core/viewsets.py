@@ -62,6 +62,9 @@ class PublicReadOnlyViewSet(GetAllListMixin, viewsets.ReadOnlyModelViewSet):
     http_method_names = ["get", "post", "head", "options"]
 
 
+_paginated_serializer_cache: dict[type, type] = {}
+
+
 def paginated_serializer(item_serializer_class):
     """
     {items: [<item_serializer_class>], page, totalPages, total} - matches
@@ -72,15 +75,23 @@ def paginated_serializer(item_serializer_class):
     paginated list() action; it has to be spelled out explicitly per resource.
     Public - reused outside this module wherever a body-paginated endpoint
     isn't a full ModelViewSet (e.g. buyers/views.py's favorites lists).
+
+    Cached per item_serializer_class - two viewsets sharing one serializer
+    (e.g. orders: the same StoreOrderSerializer is the read shape for both
+    the store-admin and the buyer side) would otherwise each get their own
+    freshly-built "Paginated<X>" class, and drf-spectacular treats those as
+    two different components that happen to want the same schema name.
     """
-    name = f"Paginated{item_serializer_class.__name__}"
-    return type(name, (serializers.Serializer,), {
-        "__module__": __name__,
-        "items": item_serializer_class(many=True),
-        "page": serializers.IntegerField(),
-        "totalPages": serializers.IntegerField(),
-        "total": serializers.IntegerField(),
-    })
+    if item_serializer_class not in _paginated_serializer_cache:
+        name = f"Paginated{item_serializer_class.__name__}"
+        _paginated_serializer_cache[item_serializer_class] = type(name, (serializers.Serializer,), {
+            "__module__": __name__,
+            "items": item_serializer_class(many=True),
+            "page": serializers.IntegerField(),
+            "totalPages": serializers.IntegerField(),
+            "total": serializers.IntegerField(),
+        })
+    return _paginated_serializer_cache[item_serializer_class]
 
 
 _WRITABLE_ACTIONS = ("create", "retrieve", "update", "partial_update", "destroy")

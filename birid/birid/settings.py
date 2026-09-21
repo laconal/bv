@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     "buyers",
     "products",
     "news",
+    "orders",
 ]
 
 MIDDLEWARE = [
@@ -173,6 +174,11 @@ SPECTACULAR_SETTINGS = {
     # and warns about it. Pin it to one canonical name explicitly.
     "ENUM_NAME_OVERRIDES": {
         "PhotoProcessingStatusEnum": "products.models.PhotoProcessingStatus.choices",
+        "OrderStatusEnum": "orders.models.OrderStatus.choices",
+        # StoreNews.status and StoreDiscount.status both use an identical
+        # draft/active/archived choice set - same reasoning as
+        # PhotoProcessingStatusEnum above.
+        "ContentStatusEnum": "news.models.NewsStatus.choices",
     },
 }
 

@@ -9,9 +9,11 @@ urlpatterns = [
     path("api/v1/stores/", include("stores.admin_urls")),
     path("api/v1/stores/", include("products.urls")),
     path("api/v1/stores/", include("news.urls")),
+    path("api/v1/stores/", include("orders.urls")),
     path("api/v1/stores/reports/", include("products.report_urls")),
 
     path("api/v1/customers/", include("buyers.urls")),
+    path("api/v1/customers/", include("orders.customer_urls")),
 
     path("api/v1/public/", include("stores.public_urls")),
     path("api/v1/public/", include("products.public_urls")),
