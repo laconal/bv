@@ -138,7 +138,15 @@ STORAGES = {
 AWS_ACCESS_KEY_ID = os.environ["MINIO_ACCESS_KEY"]
 AWS_SECRET_ACCESS_KEY = os.environ["MINIO_SECRET_KEY"]
 AWS_STORAGE_BUCKET_NAME = os.environ["MINIO_BUCKET_NAME"]
+# AWS_S3_ENDPOINT_URL is where Django/Celery actually send S3 API calls - the
+# docker-internal minio:9000 host, not reachable from a browser. File URLs
+# handed to clients (model_field.url) need a separately reachable host, so
+# MINIO_PUBLIC_URL (domain + bucket, reverse-proxied to minio:9000) overrides
+# just the URL that gets built, without changing where API calls go. Unset
+# in bare local dev, where the endpoint itself is already browser-reachable.
 AWS_S3_ENDPOINT_URL = os.environ["MINIO_ENDPOINT_URL"]
+AWS_S3_CUSTOM_DOMAIN = os.environ.get("MINIO_PUBLIC_URL") or None
+AWS_S3_URL_PROTOCOL = "https:"
 AWS_S3_ADDRESSING_STYLE = "path"
 AWS_S3_SIGNATURE_VERSION = "s3v4"
 AWS_S3_FILE_OVERWRITE = False

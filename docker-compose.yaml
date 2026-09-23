@@ -40,9 +40,6 @@ services:
     command: redis-server --maxmemory 512mb --maxmemory-policy volatile-lru
 
   minio:
-    # :latest requires x86-64-v2 CPU instructions (SSE4.2/POPCNT) - pinned to
-    # a -cpuv1 build for compatibility with older/virtualized CPUs. See
-    # https://github.com/minio/minio/issues/18365
     image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z-cpuv1
     container_name: birid-minio
     restart: unless-stopped
@@ -56,11 +53,7 @@ services:
       - "9000:9000"
       - "9001:9001"
 
-  # One-shot: waits for minio, creates the bucket the app expects
-  # (MINIO_BUCKET_NAME) if it doesn't already exist, then exits. django/
-  # celery below wait for this to finish successfully before starting.
   minio-init:
-    # same x86-64-v2 issue as minio above - pinned to a -cpuv1 build.
     image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z-cpuv1
     container_name: birid-minio-init
     depends_on:
@@ -78,13 +71,8 @@ services:
     env_file:
       - .env
     environment:
-      # Django/Celery talk to postgres through pgbouncer, never directly -
-      # see DISABLE_SERVER_SIDE_CURSORS in birid/settings.py.
       DB_HOST: pgbouncer
       DB_PORT: 6432
-      # .env's CELERY_BROKER_URL/RESULT_BACKEND and MINIO_ENDPOINT_URL say
-      # "localhost" for bare local dev - inside a container that's the
-      # container itself, not the redis/minio services.
       CELERY_BROKER_URL: redis://redis:6379/2
       CELERY_RESULT_BACKEND: redis://redis:6379/2
       MINIO_ENDPOINT_URL: http://minio:9000
@@ -100,10 +88,6 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      # JWT keys must survive container recreation - entrypoint.sh only
-      # generates them if missing, but that's useless without a place for
-      # them to persist. Shared with celery below for consistency, though
-      # celery doesn't actually read them.
       - ./birid/secrets:/app/birid/secrets
 
   celery-worker:
