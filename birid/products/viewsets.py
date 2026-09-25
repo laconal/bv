@@ -18,6 +18,7 @@ from .models import (
     StoreTag,
 )
 from .serializers import (
+    PRODUCT_PREFETCH,
     StoreCategorySerializer,
     StoreDiscountSerializer,
     StoreProductMaterialCategorySerializer,
@@ -27,6 +28,7 @@ from .serializers import (
     StoreProductSerializer,
     StoreProductVariantSerializer,
     StoreTagSerializer,
+    with_favorites_count,
 )
 from .tasks import generate_photo_renditions, process_category_cover
 
@@ -113,7 +115,7 @@ class StoreProductMaterialViewSet(StoreScopedModelViewSet):
     "created_at": CREATED_AT_FILTER_EXAMPLE,
 })
 class StoreProductViewSet(StoreScopedModelViewSet):
-    queryset = StoreProduct.objects.all()
+    queryset = with_favorites_count(StoreProduct.objects.prefetch_related(*PRODUCT_PREFETCH))
     serializer_class = StoreProductSerializer
 
 
@@ -122,7 +124,7 @@ class StoreProductViewSet(StoreScopedModelViewSet):
     "created_at": CREATED_AT_FILTER_EXAMPLE,
 })
 class StoreProductVariantViewSet(StoreScopedModelViewSet):
-    queryset = StoreProductVariant.objects.all()
+    queryset = StoreProductVariant.objects.prefetch_related("photos")
     serializer_class = StoreProductVariantSerializer
 
 
@@ -134,7 +136,7 @@ class StoreProductVariantViewSet(StoreScopedModelViewSet):
     "created_at": CREATED_AT_FILTER_EXAMPLE,
 })
 class StoreDiscountViewSet(StoreScopedModelViewSet):
-    queryset = StoreDiscount.objects.all()
+    queryset = StoreDiscount.objects.prefetch_related("discount_products")
     serializer_class = StoreDiscountSerializer
 
 
@@ -144,7 +146,7 @@ class StoreDiscountViewSet(StoreScopedModelViewSet):
     "created_at": CREATED_AT_FILTER_EXAMPLE,
 })
 class StoreProductPhotoViewSet(StoreScopedModelViewSet):
-    queryset = StoreProductPhoto.objects.all()
+    queryset = StoreProductPhoto.objects.prefetch_related("renditions")
     serializer_class = StoreProductPhotoSerializer
 
     def perform_create(self, serializer):

@@ -1,7 +1,9 @@
+from django.db.models import Prefetch
 from django.utils import timezone
 from rest_framework.permissions import AllowAny
 
 from core.viewsets import CREATED_AT_FILTER_EXAMPLE, PublicReadOnlyViewSet, public_tagged
+from products.models import StoreProduct
 
 from .models import NewsStatus, StoreNews
 from .serializers import PublicStoreNewsSerializer
@@ -28,4 +30,4 @@ class PublicStoreNewsViewSet(PublicReadOnlyViewSet):
         now = timezone.now()
         return StoreNews.objects.filter(
             store__active=True, status=NewsStatus.ACTIVE, starts_at__lte=now, ends_at__gte=now,
-        )
+        ).prefetch_related(Prefetch("products", queryset=StoreProduct.objects.only("id")))

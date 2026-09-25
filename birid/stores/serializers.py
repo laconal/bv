@@ -93,11 +93,17 @@ class PublicStoreSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(StoreSocialLinkSerializer(many=True))
     def get_social_links(self, obj):
-        return StoreSocialLinkSerializer(obj.social_links.filter(visible=True), many=True).data
+        links = getattr(obj, "visible_social_links", None)  # prefetched by PublicStoreViewSet
+        if links is None:
+            links = obj.social_links.filter(visible=True)
+        return StoreSocialLinkSerializer(links, many=True).data
 
     @extend_schema_field(StoreServiceSerializer(many=True))
     def get_services(self, obj):
-        return StoreServiceSerializer(obj.services.filter(visible=True), many=True).data
+        services = getattr(obj, "visible_services", None)  # prefetched by PublicStoreViewSet
+        if services is None:
+            services = obj.services.filter(visible=True)
+        return StoreServiceSerializer(services, many=True).data
 
 
 class PublicStoreDetailSerializer(PublicStoreSerializer):

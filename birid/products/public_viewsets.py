@@ -5,8 +5,9 @@ from rest_framework.response import Response
 
 from core.viewsets import CREATED_AT_FILTER_EXAMPLE, PublicReadOnlyViewSet, public_tagged
 
+from .discounts import prefetch_active_discounts
 from .models import StoreProduct, StoreProductView
-from .serializers import PublicProductSerializer
+from .serializers import PRODUCT_PREFETCH, PublicProductSerializer, with_favorites_count
 
 
 @public_tagged("public-products", PublicProductSerializer, filters_example={
@@ -42,7 +43,10 @@ class PublicProductViewSet(PublicReadOnlyViewSet):
     serializer_class = PublicProductSerializer
 
     def get_queryset(self):
-        return StoreProduct.objects.filter(store__active=True)
+        return with_favorites_count(
+            StoreProduct.objects.filter(store__active=True)
+            .prefetch_related(*PRODUCT_PREFETCH, prefetch_active_discounts())
+        )
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()

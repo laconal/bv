@@ -41,7 +41,7 @@ class StoreOrderViewSet(GetAllListMixin, mixins.RetrieveModelMixin, viewsets.Gen
     serializer_class = StoreOrderSerializer
 
     def get_queryset(self):
-        return StoreOrder.objects.filter(store=self.request.user.store)
+        return StoreOrder.objects.filter(store=self.request.user.store).prefetch_related("items")
 
     def partial_update(self, request, *args, **kwargs):
         instance = self.get_object()

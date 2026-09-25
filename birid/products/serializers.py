@@ -1,7 +1,11 @@
 from decimal import Decimal
 
+from django.db.models import Count, OuterRef, Subquery
+from django.db.models.functions import Coalesce
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
+
+from buyers.models import BuyerFavoriteProduct
 
 from .discounts import active_discount_products
 from .models import (
@@ -121,6 +125,32 @@ class ProductVariantReadSerializer(serializers.ModelSerializer):
         fields = ["id", "photos", "created_at", "updated_at"]
 
 
+# Every relation StoreProductSerializer/PublicProductSerializer read per
+# product - list querysets prefetch these so a page of products costs a fixed
+# number of queries instead of several per product.
+PRODUCT_PREFETCH = ("tags", "materials", "variants__photos__renditions")
+
+
+def with_favorites_count(queryset):
+    """
+    Annotates `favorites_count` (what `in_customers_saved` reports) as a
+    subquery - a plain Count() join would be inflated by the extra joins
+    that multi-valued get-all filters (e.g. tags) add to the same query.
+    """
+    favorites = (
+        BuyerFavoriteProduct.objects.filter(product=OuterRef("pk"))
+        .order_by().values("product").annotate(n=Count("pk")).values("n")
+    )
+    return queryset.annotate(favorites_count=Coalesce(Subquery(favorites), 0))
+
+
+def _favorites_count(product) -> int:
+    # Annotated on list/retrieve querysets (with_favorites_count); a freshly
+    # created/updated instance or an order-time snapshot falls back to a query.
+    count = getattr(product, "favorites_count", None)
+    return count if count is not None else product.favorited_by_buyers.count()
+
+
 class StoreProductSerializer(serializers.ModelSerializer):
     variants = ProductVariantWriteSerializer(many=True, required=False, write_only=True)
     material_ids = serializers.PrimaryKeyRelatedField(
@@ -149,7 +179,7 @@ class StoreProductSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(serializers.IntegerField())
     def get_in_customers_saved(self, obj):
-        return obj.favorited_by_buyers.count()
+        return _favorites_count(obj)
 
     def validate_variants(self, value):
         request = self.context["request"]
@@ -273,7 +303,7 @@ class PublicProductSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(serializers.IntegerField())
     def get_in_customers_saved(self, obj):
-        return obj.favorited_by_buyers.count()
+        return _favorites_count(obj)
 
     @extend_schema_field(PublicProductDiscountSerializer(many=True))
     def get_discounts(self, obj):

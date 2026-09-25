@@ -40,7 +40,7 @@ class CustomerOrderViewSet(GetAllListMixin, mixins.RetrieveModelMixin, viewsets.
     serializer_class = StoreOrderSerializer
 
     def get_queryset(self):
-        return StoreOrder.objects.filter(buyer=self.request.user)
+        return StoreOrder.objects.filter(buyer=self.request.user).prefetch_related("items")
 
     def create(self, request, *args, **kwargs):
         serializer = CustomerOrderCreateSerializer(data=request.data, context={"request": request})

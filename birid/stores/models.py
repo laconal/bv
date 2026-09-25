@@ -33,7 +33,7 @@ class StoreAdmin(AbstractAuthAccount):
         return f"{self.login} ({self.store.name})"
 
 
-class Icon(models.Model):
+class Icon(TimestampedModel):
     """Global icon catalog - the frontend lists this so a store admin can pick one per service."""
 
     ALLOWED_FILTERS = {"name"}
