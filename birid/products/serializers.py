@@ -11,6 +11,8 @@ from .models import (
     StoreDiscountProduct,
     StoreProduct,
     StoreProductPhoto,
+    StoreProductMaterial,
+    StoreProductMaterialCategory,
     StoreProductPhotoRendition,
     StoreProductVariant,
     StoreTag,
@@ -42,6 +44,26 @@ class StoreTagSerializer(serializers.ModelSerializer):
     class Meta:
         model = StoreTag
         fields = ["id", "name", "created_at", "updated_at"]
+
+
+class StoreProductMaterialCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StoreProductMaterialCategory
+        fields = ["id", "name", "created_at", "updated_at"]
+
+
+class StoreProductMaterialSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StoreProductMaterial
+        fields = ["id", "name", "category", "created_at", "updated_at"]
+
+    def validate_category(self, value):
+        if value is None:
+            return value
+        request = self.context["request"]
+        if value.store_id != request.user.store_id:
+            raise serializers.ValidationError("Category does not belong to your store.")
+        return value
 
 
 class PhotoRenditionSerializer(serializers.ModelSerializer):
@@ -101,12 +123,15 @@ class ProductVariantReadSerializer(serializers.ModelSerializer):
 
 class StoreProductSerializer(serializers.ModelSerializer):
     variants = ProductVariantWriteSerializer(many=True, required=False, write_only=True)
+    material_ids = serializers.PrimaryKeyRelatedField(
+        source="materials", queryset=StoreProductMaterial.objects.all(), many=True, required=False,
+    )
     in_customers_saved = serializers.SerializerMethodField()
 
     class Meta:
         model = StoreProduct
         fields = [
-            "id", "name", "category", "subcategory", "description", "brand", "manufacture", "material", "slug",
+            "id", "name", "category", "subcategory", "description", "brand", "manufacture", "material_ids", "slug",
             "tags", "color", "size",
             "price_sale", "price_rental", "price_tailoring",
             "is_sellable", "is_rentable", "blur_image_in_site",
@@ -178,6 +203,13 @@ class StoreProductSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("One or more tags do not belong to your store.")
         return value
 
+    def validate_material_ids(self, value):
+        request = self.context["request"]
+        for material in value:
+            if material.store_id != request.user.store_id:
+                raise serializers.ValidationError("One or more materials do not belong to your store.")
+        return value
+
     def validate(self, attrs):
         category = attrs.get("category", getattr(self.instance, "category", None))
         subcategory = attrs.get("subcategory", getattr(self.instance, "subcategory", None))
@@ -223,13 +255,14 @@ class PublicProductSerializer(serializers.ModelSerializer):
     """Unauthenticated storefront view of a product - read-only, so `variants` can just be its real read shape directly."""
 
     variants = ProductVariantReadSerializer(many=True, read_only=True)
+    material_ids = serializers.PrimaryKeyRelatedField(source="materials", many=True, read_only=True)
     discounts = serializers.SerializerMethodField()
     in_customers_saved = serializers.SerializerMethodField()
 
     class Meta:
         model = StoreProduct
         fields = [
-            "id", "store", "name", "category", "subcategory", "description", "brand", "manufacture", "material",
+            "id", "store", "name", "category", "subcategory", "description", "brand", "manufacture", "material_ids",
             "slug", "tags", "color", "size",
             "price_sale", "price_rental", "price_tailoring",
             "is_sellable", "is_rentable", "blur_image_in_site",

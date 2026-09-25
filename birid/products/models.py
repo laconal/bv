@@ -81,9 +81,44 @@ class StoreTag(TimestampedModel):
         return self.name
 
 
+class StoreProductMaterialCategory(TimestampedModel):
+    """Grouping for materials only - unrelated to StoreCategory (which groups products)."""
+
+    ALLOWED_FILTERS = {"name", "created_at"}
+
+    store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name="product_material_categories")
+    name = models.CharField(max_length=255)
+
+    class Meta(TimestampedModel.Meta):
+        constraints = [
+            models.UniqueConstraint(fields=["store", "name"], name="uniq_product_material_category_name_per_store"),
+        ]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class StoreProductMaterial(TimestampedModel):
+    ALLOWED_FILTERS = {"name", "category", "created_at"}
+
+    store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name="product_materials")
+    name = models.CharField(max_length=255)
+    category = models.ForeignKey(
+        StoreProductMaterialCategory, on_delete=models.SET_NULL, null=True, blank=True, related_name="materials",
+    )
+
+    class Meta(TimestampedModel.Meta):
+        constraints = [
+            models.UniqueConstraint(fields=["store", "name"], name="uniq_product_material_name_per_store"),
+        ]
+
+    def __str__(self) -> str:
+        return self.name
+
+
 class StoreProduct(TimestampedModel):
     ALLOWED_FILTERS = {
-        "store", "name", "category", "subcategory", "brand", "manufacture", "material",
+        "store", "name", "category", "subcategory", "brand", "manufacture", "materials",
         "tags", "color", "size", "price_sale", "price_rental", "price_tailoring",
         "is_sellable", "is_rentable", "blur_image_in_site", "created_at",
     }
@@ -101,9 +136,9 @@ class StoreProduct(TimestampedModel):
     description = models.TextField(blank=True, default="")
     brand = models.CharField(max_length=255, blank=True, default="")
     manufacture = models.CharField(max_length=255, blank=True, default="")
-    material = models.CharField(max_length=255, blank=True, default="")
     slug = models.SlugField(max_length=255)
 
+    materials = models.ManyToManyField(StoreProductMaterial, related_name="products", blank=True)
     tags = models.ManyToManyField(StoreTag, related_name="products", blank=True)
     color = models.ForeignKey(
         StoreColor, on_delete=models.SET_NULL, null=True, blank=True, related_name="products",

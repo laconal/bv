@@ -11,6 +11,8 @@ from .models import (
     StoreCategory,
     StoreDiscount,
     StoreProduct,
+    StoreProductMaterial,
+    StoreProductMaterialCategory,
     StoreProductPhoto,
     StoreProductVariant,
     StoreTag,
@@ -18,6 +20,8 @@ from .models import (
 from .serializers import (
     StoreCategorySerializer,
     StoreDiscountSerializer,
+    StoreProductMaterialCategorySerializer,
+    StoreProductMaterialSerializer,
     StoreProductPhotoSerializer,
     StoreProductResponseSerializer,
     StoreProductSerializer,
@@ -60,6 +64,25 @@ class StoreTagViewSet(StoreScopedModelViewSet):
     serializer_class = StoreTagSerializer
 
 
+@tagged("stores-product-material-categories", StoreProductMaterialCategorySerializer, filters_example={
+    "name": "Натуральные",
+    "created_at": CREATED_AT_FILTER_EXAMPLE,
+})
+class StoreProductMaterialCategoryViewSet(StoreScopedModelViewSet):
+    queryset = StoreProductMaterialCategory.objects.all()
+    serializer_class = StoreProductMaterialCategorySerializer
+
+
+@tagged("stores-product-materials", StoreProductMaterialSerializer, filters_example={
+    "name": "Хлопок",
+    "category": 1,
+    "created_at": CREATED_AT_FILTER_EXAMPLE,
+})
+class StoreProductMaterialViewSet(StoreScopedModelViewSet):
+    queryset = StoreProductMaterial.objects.all()
+    serializer_class = StoreProductMaterialSerializer
+
+
 @extend_schema_view(
     # StoreProductSerializer.variants is write_only with its read shape injected
     # by to_representation() - not visible to static schema analysis. Layered
@@ -77,7 +100,7 @@ class StoreTagViewSet(StoreScopedModelViewSet):
     "subcategory": 2,
     "brand": "Zara",
     "manufacture": "Италия",
-    "material": "Хлопок",
+    "materials": [1, 2],
     "tags": [1, 2],
     "color": 3,
     "size": {"gte": 40, "lte": 46},

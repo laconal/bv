@@ -16,7 +16,7 @@ from .serializers import PublicProductSerializer
     "subcategory": 2,
     "brand": "Zara",
     "manufacture": "Италия",
-    "material": "Хлопок",
+    "materials": [1, 2],
     "tags": [1, 2],
     "color": 3,
     "size": {"gte": 40, "lte": 46},
