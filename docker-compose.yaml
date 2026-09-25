@@ -63,11 +63,20 @@ services:
     depends_on:
       minio:
         condition: service_started
-    entrypoint: >
-      /bin/sh -c "
-      until mc alias set local http://minio:9000 ${MINIO_ACCESS_KEY} ${MINIO_SECRET_KEY}; do sleep 1; done &&
-      mc mb --ignore-existing local/${MINIO_BUCKET_NAME}
-      "
+    # Also grants anonymous read of objects - file URLs are unsigned
+    # (AWS_QUERYSTRING_AUTH = False) and fetched directly by the frontend.
+    # GetObject only, not mc's `download` preset: that one also grants
+    # s3:ListBucket, which would let anyone enumerate every key in the bucket.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        until mc alias set local http://minio:9000 ${MINIO_ACCESS_KEY} ${MINIO_SECRET_KEY}; do sleep 1; done
+        mc mb --ignore-existing local/${MINIO_BUCKET_NAME}
+        cat > /tmp/policy.json <<'EOF'
+        {"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":["*"]},"Action":["s3:GetObject"],"Resource":["arn:aws:s3:::${MINIO_BUCKET_NAME}/*"]}]}
+        EOF
+        mc anonymous set-json /tmp/policy.json local/${MINIO_BUCKET_NAME}
 
   django:
     build: .

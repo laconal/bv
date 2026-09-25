@@ -1,5 +1,6 @@
 src/core/secrets/
 birid/secrets/
+birid/staticfiles/
 old
 
 __pycache__/

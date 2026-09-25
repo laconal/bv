@@ -30,6 +30,8 @@ done
 if [ "$1" = "gunicorn" ]; then
     echo "Applying migrations"
     uv run python manage.py migrate --noinput
+    echo "Collecting static files"
+    uv run python manage.py collectstatic --noinput
 fi
 
 echo "Starting: $*"
