@@ -20,7 +20,7 @@ SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 DEBUG = os.environ.get("DJANGO_DEBUG", "false").lower() == "true"
 
 ALLOWED_HOSTS = [h.strip() for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",") if h.strip()]
-
+CORS_ALLOW_ALL_ORIGINS = True
 # Full origins (scheme included), e.g. https://admin.birid.silently.watch -
 # Django rejects an HTTPS form POST (the admin login) whose Origin isn't here
 # or doesn't match the request's own host+scheme.
