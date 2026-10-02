@@ -1,5 +1,8 @@
 from buyers.authentication import BuyerJWTAuthentication
 from django.db.models import F, Q
+from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema
+from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
@@ -50,7 +53,14 @@ class PublicProductViewSet(PublicReadOnlyViewSet):
         )
 
     def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
+        return self._retrieve(request, self.get_object())
+
+    @extend_schema(tags=["public-products"], responses=PublicProductSerializer, summary="Retrieve by slug")
+    @action(detail=False, methods=["get"], url_path=r"by-slug/(?P<slug>[-a-zA-Z0-9_]+)")
+    def by_slug(self, request, slug=None):
+        return self._retrieve(request, get_object_or_404(self.get_queryset(), slug=slug))
+
+    def _retrieve(self, request, instance):
         if request.user and request.user.is_authenticated:
             StoreProduct.objects.filter(id=instance.id).update(views=F("views") + 1)
             StoreProductView.objects.create(store_id=instance.store_id, product=instance)

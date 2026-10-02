@@ -78,13 +78,23 @@ Public store endpoint only shows `visible=True` social links/services (prefetche
 | `StoreTag` | `name` (unique per store). |
 | `StoreProductMaterialCategory` | grouping for materials only — unrelated to `StoreCategory`. |
 | `StoreProductMaterial` | `name`, optional FK `category` → material category. |
-| `StoreProduct` | `name`, `slug` (unique per store), `category` (required, PROTECT), `subcategory` (optional, must be a child of `category`), `description`, `brand`, `manufacture`, M2M `materials`, M2M `tags`, FK `color`, `size` = **`ArrayField(int)`** (available sizes), three optional prices `price_sale` / `price_rental` / `price_tailoring`, flags `is_sellable`, `is_rentable`, `blur_image_in_site`, `views` (lifetime counter, not editable). |
+| `StoreProduct` | `name`, `slug` (**globally unique** across all stores — storefront URL is `/products/<slug>`; optional on input, generated server-side, see below), `category` (required, PROTECT), `subcategory` (optional, must be a child of `category`), `description`, `brand`, `manufacture`, M2M `materials`, M2M `tags`, FK `color`, `size` = **`ArrayField(int)`** (available sizes), three optional prices `price_sale` / `price_rental` / `price_tailoring`, flags `is_sellable`, `is_rentable`, `blur_image_in_site`, `views` (lifetime counter, not editable). |
 | `StoreProductView` | one row per authenticated-buyer view; enables date-ranged "most viewed" reports. Only buyers count (not anonymous, not admins). |
 | `StoreProductPhoto` | `uuid` (storage key), `image` (original), `original_filename`, `processing_status`. Store-scoped, **not tied to one product** — reused by variants, discounts, news. |
 | `StoreProductPhotoRendition` | `photo` FK, `quality` (`large`/`medium`/`small`), `image`. Unique (photo, quality). Created only by the Celery task. |
 | `StoreProductVariant` | FK `product`, M2M `photos` (same photo can appear in several variants). Photos are reached through variants: `product.variants.photos.renditions`. |
 | `StoreDiscount` | `title`, `description`, optional `starts_at`/`ends_at`, `status` (draft/active/archived), M2M `products` through `StoreDiscountProduct`, optional FK `image` → `StoreProductPhoto` (SET_NULL). |
 | `StoreDiscountProduct` | per-product `discount_type` (`fixed_amount`/`percentage`) + `value`. Unique (discount, product). |
+
+Product slug rules (`products/slugs.py`, used by `StoreProductSerializer._resolve_slug`):
+
+- Create without `slug` (or with `""`/`null`): built from `name`. Cyrillic (Russian + Uzbek) is transliterated
+  first, then `slugify` runs (`"Красное платье"` → `krasnoe-plate`). An empty result falls back to `product`.
+- A sent `slug` is used as-is.
+- Either way, a value taken by another product gets `-2`, `-3`, … (never a 400).
+- PATCH without `slug` keeps the current slug, even if `name` changes, so shared URLs don't break. PATCH with a
+  value applies the same rules, and the product's own current slug doesn't count as a conflict.
+- Two simultaneous creates can still collide; the DB unique constraint then returns a 409 for the second one.
 
 "Active discount" = `status=active` and now inside `[starts_at, ends_at]` (either bound may be null).
 Logic lives in `products/discounts.py` (`active_discount_products()`, `prefetch_active_discounts()`), shared by the

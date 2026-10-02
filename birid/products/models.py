@@ -140,7 +140,8 @@ class StoreProduct(TimestampedModel):
     description = models.TextField(blank=True, default="")
     brand = models.CharField(max_length=255, blank=True, default="")
     manufacture = models.CharField(max_length=255, blank=True, default="")
-    slug = models.SlugField(max_length=255)
+    # Unique across all stores - the storefront URL is domain/products/<slug>, with no store in it.
+    slug = models.SlugField(max_length=255, unique=True)
 
     materials = models.ManyToManyField(StoreProductMaterial, related_name="products", blank=True)
     tags = models.ManyToManyField(StoreTag, related_name="products", blank=True)
@@ -161,11 +162,6 @@ class StoreProduct(TimestampedModel):
     # authenticated buyer (see products/public_viewsets.py) - anonymous
     # browsing and store-admin access don't count.
     views = models.PositiveIntegerField(default=0, editable=False)
-
-    class Meta(TimestampedModel.Meta):
-        constraints = [
-            models.UniqueConstraint(fields=["store", "slug"], name="uniq_product_slug_per_store"),
-        ]
 
     def __str__(self) -> str:
         return self.name

@@ -80,6 +80,8 @@ Root `test.py` and `celerybeat-schedule` are scratch/artifacts, not part of the 
 
 - `.env` lives at the repo root, but JWT key paths in it resolve relative to `birid/` (`BASE_DIR`).
 - `CORS_ALLOW_ALL_ORIGINS = True` — intentionally open for now; `CSRF_TRUSTED_ORIGINS` still comes from env.
+- Product `slug` is unique across **all** stores (not per store) — public lookup: `GET /public/products/by-slug/<slug>/`.
+  It's optional on input: generated from the name when missing, auto-suffixed (`-2`, `-3`) on conflict — see docs/models.md.
 - Product `size` is a list of ints (`ArrayField`); an order item's `size` is a single int validated against it.
 - Public product listing hides products whose `category` or `subcategory` has `visible=False`.
 - Orders keep an immutable `product_snapshot` JSON — never read live product data to describe a past order.

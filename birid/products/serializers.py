@@ -22,6 +22,7 @@ from .models import (
     StoreTag,
 )
 from .photos import replace_image
+from .slugs import slug_from_name, unique_product_slug
 
 
 class StoreCategorySerializer(serializers.ModelSerializer):
@@ -153,6 +154,12 @@ def _favorites_count(product) -> int:
 
 
 class StoreProductSerializer(serializers.ModelSerializer):
+    # Declared explicitly to drop the auto UniqueValidator - a taken slug isn't
+    # an error here, _resolve_slug() suffixes it instead.
+    slug = serializers.SlugField(
+        max_length=255, required=False, allow_blank=True, allow_null=True,
+        help_text="Optional. Omitted/empty: generated from name. Taken: suffixed with -2, -3, ...",
+    )
     variants = ProductVariantWriteSerializer(many=True, required=False, write_only=True)
     material_ids = serializers.PrimaryKeyRelatedField(
         source="materials", queryset=StoreProductMaterial.objects.all(), many=True, required=False,
@@ -192,6 +199,7 @@ class StoreProductSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         variants_data = validated_data.pop("variants", [])
+        validated_data["slug"] = self._resolve_slug(validated_data.get("slug"), validated_data["name"])
         product = super().create(validated_data)
         for variant_data in variants_data:
             variant = StoreProductVariant.objects.create(store=product.store, product=product)
@@ -203,7 +211,16 @@ class StoreProductSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         # Nested variant writes are create-time only for now - PATCH leaves existing variants untouched.
         validated_data.pop("variants", None)
+        # No `slug` in the PATCH keeps the current one - renaming a product must not break its shared URL.
+        if "slug" in validated_data:
+            validated_data["slug"] = self._resolve_slug(
+                validated_data["slug"], validated_data.get("name", instance.name), exclude_id=instance.id,
+            )
         return super().update(instance, validated_data)
+
+    @staticmethod
+    def _resolve_slug(slug, name, exclude_id=None):
+        return unique_product_slug(slug or slug_from_name(name), exclude_id=exclude_id)
 
     def validate_category(self, value):
         request = self.context["request"]
@@ -263,6 +280,7 @@ class StoreProductResponseSerializer(StoreProductSerializer):
     """
 
     variants = ProductVariantReadSerializer(many=True, read_only=True)
+    slug = serializers.SlugField(read_only=True)
 
 
 class PublicProductDiscountSerializer(serializers.ModelSerializer):
