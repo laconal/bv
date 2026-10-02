@@ -6,6 +6,7 @@ services:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
+    restart: unless-stopped
     volumes:
       - postgres_data:/var/lib/postgresql
     healthcheck:
@@ -17,6 +18,7 @@ services:
   pgbouncer:
     image: edoburu/pgbouncer:latest
     container_name: birid-pgbouncer
+    restart: unless-stopped
     environment:
       DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
       LISTEN_PORT: 6432
@@ -81,6 +83,7 @@ services:
   django:
     build: .
     container_name: birid-django
+    restart: unless-stopped
     env_file:
       - .env
     environment:
@@ -106,6 +109,7 @@ services:
   celery-worker:
     build: .
     container_name: birid-celery-worker
+    restart: unless-stopped
     env_file:
       - .env
     environment:
@@ -130,6 +134,7 @@ services:
   celery-beat:
     build: .
     container_name: birid-celery-beat
+    restart: unless-stopped
     env_file:
       - .env
     environment:
