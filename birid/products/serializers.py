@@ -21,6 +21,7 @@ from .models import (
     StoreProductVariant,
     StoreTag,
 )
+from .tasks import generate_photo_renditions
 
 
 class StoreCategorySerializer(serializers.ModelSerializer):
@@ -343,9 +344,7 @@ class DiscountProductSerializer(serializers.ModelSerializer):
 
 class StoreDiscountSerializer(serializers.ModelSerializer):
     products = DiscountProductSerializer(source="discount_products", many=True, required=False)
-    image = serializers.PrimaryKeyRelatedField(
-        queryset=StoreProductPhoto.objects.all(), required=False, allow_null=True,
-    )
+    image = serializers.ImageField(write_only=True, required=False, allow_null=True)
 
     class Meta:
         model = StoreDiscount
@@ -359,14 +358,6 @@ class StoreDiscountSerializer(serializers.ModelSerializer):
         data["image"] = StoreProductPhotoSerializer(instance.image).data if instance.image_id else None
         return data
 
-    def validate_image(self, value):
-        if value is None:
-            return value
-        request = self.context["request"]
-        if value.store_id != request.user.store_id:
-            raise serializers.ValidationError("Image does not belong to your store.")
-        return value
-
     def validate(self, attrs):
         starts_at = attrs.get("starts_at", getattr(self.instance, "starts_at", None))
         ends_at = attrs.get("ends_at", getattr(self.instance, "ends_at", None))
@@ -375,18 +366,36 @@ class StoreDiscountSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
+        image_file = validated_data.pop("image", None)
         products_data = validated_data.pop("discount_products", [])
         discount = super().create(validated_data)
         self._sync_products(discount, products_data)
+        if image_file is not None:
+            self._attach_image(discount, image_file)
         return discount
 
     def update(self, instance, validated_data):
+        has_image = "image" in validated_data
+        image_file = validated_data.pop("image", None)
         products_data = validated_data.pop("discount_products", None)
         discount = super().update(instance, validated_data)
         if products_data is not None:
             discount.discount_products.all().delete()
             self._sync_products(discount, products_data)
+        if has_image:
+            self._attach_image(discount, image_file)
         return discount
+
+    def _attach_image(self, discount, image_file):
+        """Uploads straight into a new StoreProductPhoto and kicks off its renditions - see StoreProductPhotoViewSet.perform_create."""
+        if image_file is None:
+            discount.image = None
+            discount.save(update_fields=["image", "updated_at"])
+            return
+        photo = StoreProductPhoto.objects.create(store=discount.store, image=image_file)
+        generate_photo_renditions.delay(photo.id)
+        discount.image = photo
+        discount.save(update_fields=["image", "updated_at"])
 
     def _sync_products(self, discount, products_data):
         for item in products_data:
