@@ -45,6 +45,8 @@ class Buyer(AbstractAuthAccount):
     avatar_processing_status = models.CharField(
         max_length=20, choices=BuyerAvatarProcessingStatus.choices, null=True, blank=True, default=None,
     )
+    # Sweep re-queue count for the current avatar - reset whenever a new avatar is uploaded.
+    avatar_processing_retries = models.PositiveSmallIntegerField(default=0, editable=False)
 
     # through=BuyerFavoriteProduct (not a bare M2M) so each favorite carries
     # a created_at - the "most favorited products" report (products/reports.py)

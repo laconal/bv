@@ -3,6 +3,7 @@ from drf_spectacular.utils import extend_schema, extend_schema_view
 
 from core.viewsets import CREATED_AT_FILTER_EXAMPLE, tagged
 from products.models import StoreProduct
+from products.photos import delete_with_image
 from stores.viewsets import StoreScopedModelViewSet
 
 from .models import StoreNews
@@ -29,3 +30,6 @@ class StoreNewsViewSet(StoreScopedModelViewSet):
         Prefetch("products", queryset=StoreProduct.objects.only("id")), "image__renditions",
     )
     serializer_class = StoreNewsSerializer
+
+    def perform_destroy(self, instance):
+        delete_with_image(instance)

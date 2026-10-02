@@ -31,6 +31,7 @@ from .serializers import (
     StoreTagSerializer,
     with_favorites_count,
 )
+from .photos import delete_with_image
 from .tasks import generate_photo_renditions, process_category_cover
 
 
@@ -53,7 +54,9 @@ class StoreCategoryViewSet(StoreScopedModelViewSet):
 
     def perform_update(self, serializer):
         new_cover_provided = bool(serializer.validated_data.get("cover"))
-        extra = {"cover_processing_status": PhotoProcessingStatus.PENDING} if new_cover_provided else {}
+        extra = {
+            "cover_processing_status": PhotoProcessingStatus.PENDING, "cover_processing_retries": 0,
+        } if new_cover_provided else {}
         category = serializer.save(**extra)
         if new_cover_provided:
             process_category_cover.delay(category.id)
@@ -149,6 +152,9 @@ class StoreProductVariantViewSet(StoreScopedModelViewSet):
 class StoreDiscountViewSet(StoreScopedModelViewSet):
     queryset = StoreDiscount.objects.prefetch_related("discount_products", "image__renditions")
     serializer_class = StoreDiscountSerializer
+
+    def perform_destroy(self, instance):
+        delete_with_image(instance)
 
 
 @tagged("stores-product-photos", StoreProductPhotoSerializer, filters_example={

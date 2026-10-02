@@ -81,7 +81,9 @@ class BuyerMeView(APIView):
         serializer.is_valid(raise_exception=True)
 
         new_avatar_provided = "avatar_photo" in serializer.validated_data
-        extra = {"avatar_processing_status": BuyerAvatarProcessingStatus.PENDING} if new_avatar_provided else {}
+        extra = {
+            "avatar_processing_status": BuyerAvatarProcessingStatus.PENDING, "avatar_processing_retries": 0,
+        } if new_avatar_provided else {}
         serializer.save(**extra)
 
         if new_avatar_provided:

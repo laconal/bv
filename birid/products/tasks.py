@@ -3,6 +3,7 @@ from datetime import timedelta
 
 from celery import shared_task
 from django.core.files.base import ContentFile
+from django.db.models import F
 from django.utils import timezone
 from PIL import Image
 
@@ -35,6 +36,10 @@ _COVER_SIZE = 1000
 # (15+30+60+120+240s ~= 7.5min worst case) so the sweep never fires on a photo
 # Celery is still actively retrying on its own.
 _STUCK_THRESHOLD = timedelta(minutes=15)
+
+# The sweep gives up on a photo/cover after this many re-queues (each one is
+# a full task run with its own Celery retries) - it stays `failed` from then on.
+_MAX_SWEEP_RETRIES = 5
 
 
 @shared_task(bind=True, max_retries=5)
@@ -123,19 +128,30 @@ def sweep_stuck_photo_processing() -> None:
     etc. Celery's own per-task retries (above) already handle ordinary
     transient failures; this only re-queues work stale well past that.
     """
-    cutoff = timezone.now() - _STUCK_THRESHOLD
+    now = timezone.now()
+    cutoff = now - _STUCK_THRESHOLD
 
-    stuck_photo_ids = StoreProductPhoto.objects.filter(
+    stuck_photo_ids = list(StoreProductPhoto.objects.filter(
         processing_status__in=[PhotoProcessingStatus.PENDING, PhotoProcessingStatus.FAILED],
         updated_at__lt=cutoff,
-    ).values_list("id", flat=True)
+        processing_retries__lt=_MAX_SWEEP_RETRIES,
+    ).values_list("id", flat=True))
+    # Bumping updated_at also keeps the next sweep from re-queuing a photo
+    # whose task is still waiting in the queue (.update() skips auto_now).
+    StoreProductPhoto.objects.filter(id__in=stuck_photo_ids).update(
+        processing_retries=F("processing_retries") + 1, updated_at=now,
+    )
     for photo_id in stuck_photo_ids:
         generate_photo_renditions.delay(photo_id)
 
-    stuck_category_ids = StoreCategory.objects.filter(
+    stuck_category_ids = list(StoreCategory.objects.filter(
         cover_processing_status__in=[PhotoProcessingStatus.PENDING, PhotoProcessingStatus.FAILED],
         updated_at__lt=cutoff,
-    ).values_list("id", flat=True)
+        cover_processing_retries__lt=_MAX_SWEEP_RETRIES,
+    ).values_list("id", flat=True))
+    StoreCategory.objects.filter(id__in=stuck_category_ids).update(
+        cover_processing_retries=F("cover_processing_retries") + 1, updated_at=now,
+    )
     for category_id in stuck_category_ids:
         process_category_cover.delay(category_id)
 

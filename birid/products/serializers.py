@@ -21,7 +21,7 @@ from .models import (
     StoreProductVariant,
     StoreTag,
 )
-from .tasks import generate_photo_renditions
+from .photos import replace_image
 
 
 class StoreCategorySerializer(serializers.ModelSerializer):
@@ -371,7 +371,7 @@ class StoreDiscountSerializer(serializers.ModelSerializer):
         discount = super().create(validated_data)
         self._sync_products(discount, products_data)
         if image_file is not None:
-            self._attach_image(discount, image_file)
+            replace_image(discount, image_file)
         return discount
 
     def update(self, instance, validated_data):
@@ -383,19 +383,8 @@ class StoreDiscountSerializer(serializers.ModelSerializer):
             discount.discount_products.all().delete()
             self._sync_products(discount, products_data)
         if has_image:
-            self._attach_image(discount, image_file)
+            replace_image(discount, image_file)
         return discount
-
-    def _attach_image(self, discount, image_file):
-        """Uploads straight into a new StoreProductPhoto and kicks off its renditions - see StoreProductPhotoViewSet.perform_create."""
-        if image_file is None:
-            discount.image = None
-            discount.save(update_fields=["image", "updated_at"])
-            return
-        photo = StoreProductPhoto.objects.create(store=discount.store, image=image_file)
-        generate_photo_renditions.delay(photo.id)
-        discount.image = photo
-        discount.save(update_fields=["image", "updated_at"])
 
     def _sync_products(self, discount, products_data):
         for item in products_data:

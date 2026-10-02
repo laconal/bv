@@ -1,9 +1,8 @@
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from products.models import StoreProductPhoto
+from products.photos import replace_image
 from products.serializers import StoreProductPhotoSerializer
-from products.tasks import generate_photo_renditions
 
 from .models import StoreNews
 
@@ -28,7 +27,7 @@ class StoreNewsSerializer(serializers.ModelSerializer):
         image_file = validated_data.pop("image", None)
         news = super().create(validated_data)
         if image_file is not None:
-            self._attach_image(news, image_file)
+            replace_image(news, image_file)
         return news
 
     def update(self, instance, validated_data):
@@ -36,19 +35,8 @@ class StoreNewsSerializer(serializers.ModelSerializer):
         image_file = validated_data.pop("image", None)
         news = super().update(instance, validated_data)
         if has_image:
-            self._attach_image(news, image_file)
+            replace_image(news, image_file)
         return news
-
-    def _attach_image(self, news, image_file):
-        """Uploads straight into a new StoreProductPhoto and kicks off its renditions - see StoreProductPhotoViewSet.perform_create."""
-        if image_file is None:
-            news.image = None
-            news.save(update_fields=["image", "updated_at"])
-            return
-        photo = StoreProductPhoto.objects.create(store=news.store, image=image_file)
-        generate_photo_renditions.delay(photo.id)
-        news.image = photo
-        news.save(update_fields=["image", "updated_at"])
 
     def validate_products(self, value):
         request = self.context["request"]

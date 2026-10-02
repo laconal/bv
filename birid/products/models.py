@@ -56,6 +56,8 @@ class StoreCategory(TimestampedModel):
     cover_processing_status = models.CharField(
         max_length=20, choices=PhotoProcessingStatus.choices, null=True, blank=True, default=None,
     )
+    # Sweep re-queue count for the current cover - reset whenever a new cover is uploaded.
+    cover_processing_retries = models.PositiveSmallIntegerField(default=0, editable=False)
 
     class Meta(TimestampedModel.Meta):
         constraints = [
@@ -211,6 +213,8 @@ class StoreProductPhoto(TimestampedModel):
     processing_status = models.CharField(
         max_length=20, choices=PhotoProcessingStatus.choices, default=PhotoProcessingStatus.PENDING,
     )
+    # How many times sweep_stuck_photo_processing has re-queued this photo - capped there.
+    processing_retries = models.PositiveSmallIntegerField(default=0, editable=False)
 
     class Meta(TimestampedModel.Meta):
         # sweep_stuck_photo_processing (products/tasks.py) filters on exactly this pair
@@ -218,6 +222,17 @@ class StoreProductPhoto(TimestampedModel):
 
     def __str__(self) -> str:
         return str(self.uuid)
+
+    def is_referenced(self) -> bool:
+        return self.variants.exists() or self.news.exists() or self.discounts.exists()
+
+    def delete_with_files(self) -> None:
+        # The row delete cascades to renditions, but Django never removes the stored files itself.
+        files = [rendition.image for rendition in self.renditions.all()] + [self.image]
+        self.delete()
+        for file in files:
+            if file.name:
+                file.storage.delete(file.name)
 
 
 class StoreProductPhotoRendition(TimestampedModel):

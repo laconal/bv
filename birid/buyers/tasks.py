@@ -3,6 +3,7 @@ from datetime import timedelta
 
 from celery import shared_task
 from django.core.files.base import ContentFile
+from django.db.models import F
 from django.utils import timezone
 from PIL import Image
 
@@ -16,6 +17,9 @@ _AVATAR_QUALITY = 80
 # Must comfortably outlast the retry backoff below (15+30+60+120+240s ~= 7.5min
 # worst case) so the sweep never fires on an avatar Celery is still retrying on its own.
 _STUCK_THRESHOLD = timedelta(minutes=15)
+
+# The sweep gives up on an avatar after this many re-queues - it stays `failed` from then on.
+_MAX_SWEEP_RETRIES = 5
 
 
 @shared_task(bind=True, max_retries=5)
@@ -62,12 +66,18 @@ def sweep_stuck_avatar_processing() -> None:
     Celery's own per-task retries (above) already handle ordinary transient
     failures; this only re-queues work stale well past that.
     """
-    cutoff = timezone.now() - _STUCK_THRESHOLD
+    now = timezone.now()
+    cutoff = now - _STUCK_THRESHOLD
 
-    stuck_buyer_ids = Buyer.objects.filter(
+    stuck_buyer_ids = list(Buyer.objects.filter(
         avatar_processing_status__in=[BuyerAvatarProcessingStatus.PENDING, BuyerAvatarProcessingStatus.FAILED],
         updated_at__lt=cutoff,
-    ).values_list("id", flat=True)
+        avatar_processing_retries__lt=_MAX_SWEEP_RETRIES,
+    ).values_list("id", flat=True))
+    # Bumping updated_at keeps the next sweep from re-queuing an avatar whose task is still queued.
+    Buyer.objects.filter(id__in=stuck_buyer_ids).update(
+        avatar_processing_retries=F("avatar_processing_retries") + 1, updated_at=now,
+    )
     for buyer_id in stuck_buyer_ids:
         process_buyer_avatar.delay(buyer_id)
 
