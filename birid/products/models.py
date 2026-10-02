@@ -1,6 +1,7 @@
 import uuid as uuid_lib
 from pathlib import Path
 
+from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
 from core.models import TimestampedModel
@@ -35,13 +36,14 @@ def category_cover_processed_upload_path(instance: "StoreCategory", filename: st
 
 
 class StoreCategory(TimestampedModel):
-    ALLOWED_FILTERS = {"name", "parent", "created_at"}
+    ALLOWED_FILTERS = {"name", "parent", "visible", "created_at"}
 
     store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name="categories")
     name = models.CharField(max_length=255)
     parent = models.ForeignKey(
         "self", on_delete=models.PROTECT, null=True, blank=True, related_name="children",
     )
+    visible = models.BooleanField(default=True)
 
     # Uploaded as-is; a worker center-crops it to 1:1 and resizes to exactly
     # 1000x1000 into `cover_processed` (see products/tasks.py) - unlike
@@ -143,7 +145,7 @@ class StoreProduct(TimestampedModel):
     color = models.ForeignKey(
         StoreColor, on_delete=models.SET_NULL, null=True, blank=True, related_name="products",
     )
-    size = models.IntegerField(null=True, blank=True)
+    size = ArrayField(models.IntegerField(), blank=True, default=list)
 
     price_sale = models.DecimalField(max_digits=30, decimal_places=2, null=True, blank=True)
     price_rental = models.DecimalField(max_digits=30, decimal_places=2, null=True, blank=True)
@@ -277,6 +279,13 @@ class StoreDiscount(TimestampedModel):
     status = models.CharField(max_length=20, choices=DiscountStatus.choices, default=DiscountStatus.DRAFT)
 
     products = models.ManyToManyField(StoreProduct, through="StoreDiscountProduct", related_name="discounts")
+
+    # A reference to an already-uploaded StoreProductPhoto - reuses that
+    # model's renditions (large/medium/small WebP, see products/tasks.py's
+    # generate_photo_renditions) instead of a separate image pipeline.
+    image = models.ForeignKey(
+        StoreProductPhoto, on_delete=models.SET_NULL, null=True, blank=True, related_name="discounts",
+    )
 
     def __str__(self) -> str:
         return self.title

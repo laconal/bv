@@ -30,4 +30,6 @@ class PublicStoreNewsViewSet(PublicReadOnlyViewSet):
         now = timezone.now()
         return StoreNews.objects.filter(
             store__active=True, status=NewsStatus.ACTIVE, starts_at__lte=now, ends_at__gte=now,
-        ).prefetch_related(Prefetch("products", queryset=StoreProduct.objects.only("id")))
+        ).prefetch_related(
+            Prefetch("products", queryset=StoreProduct.objects.only("id")), "image__renditions",
+        )

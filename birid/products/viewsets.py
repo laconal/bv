@@ -20,6 +20,7 @@ from .models import (
 from .serializers import (
     PRODUCT_PREFETCH,
     StoreCategorySerializer,
+    StoreDiscountResponseSerializer,
     StoreDiscountSerializer,
     StoreProductMaterialCategorySerializer,
     StoreProductMaterialSerializer,
@@ -36,6 +37,7 @@ from .tasks import generate_photo_renditions, process_category_cover
 @tagged("stores-categories", StoreCategorySerializer, filters_example={
     "name": "Платья",
     "parent": 1,
+    "visible": True,
     "created_at": CREATED_AT_FILTER_EXAMPLE,
 })
 class StoreCategoryViewSet(StoreScopedModelViewSet):
@@ -105,7 +107,7 @@ class StoreProductMaterialViewSet(StoreScopedModelViewSet):
     "materials": [1, 2],
     "tags": [1, 2],
     "color": 3,
-    "size": {"gte": 40, "lte": 46},
+    "size": [40, 42],
     "price_sale": {"gte": "1000.00", "lte": "20000.00"},
     "price_rental": {"gte": "0.00"},
     "price_tailoring": {"gte": "0.00"},
@@ -128,7 +130,16 @@ class StoreProductVariantViewSet(StoreScopedModelViewSet):
     serializer_class = StoreProductVariantSerializer
 
 
-@tagged("stores-discounts", StoreDiscountSerializer, filters_example={
+@extend_schema_view(
+    # StoreDiscountSerializer.image is write_only with its read shape
+    # injected by to_representation() - not visible to static schema
+    # analysis (see StoreDiscountResponseSerializer's docstring).
+    retrieve=extend_schema(responses=StoreDiscountResponseSerializer),
+    create=extend_schema(responses=StoreDiscountResponseSerializer),
+    update=extend_schema(responses=StoreDiscountResponseSerializer),
+    partial_update=extend_schema(responses=StoreDiscountResponseSerializer),
+)
+@tagged("stores-discounts", StoreDiscountResponseSerializer, filters_example={
     "title": "Осенняя скидка",
     "starts_at": {"gte": "2026-10-01T00:00:00Z"},
     "ends_at": {"lte": "2026-10-31T23:59:59Z"},
@@ -136,7 +147,7 @@ class StoreProductVariantViewSet(StoreScopedModelViewSet):
     "created_at": CREATED_AT_FILTER_EXAMPLE,
 })
 class StoreDiscountViewSet(StoreScopedModelViewSet):
-    queryset = StoreDiscount.objects.prefetch_related("discount_products")
+    queryset = StoreDiscount.objects.prefetch_related("discount_products", "image__renditions")
     serializer_class = StoreDiscountSerializer
 
 

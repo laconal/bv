@@ -1,3 +1,4 @@
+from django.contrib.postgres.fields import ArrayField
 from django.db import models as django_models
 from rest_framework.exceptions import ValidationError
 
@@ -24,6 +25,9 @@ def apply_filters(queryset, filters: dict | None):
       - plain value otherwise -> exact match
       - list -> `__in`
       - {"eq"|"gt"|"gte"|"lt"|"lte": value} -> comparison (numeric/date fields)
+      - on an array field (e.g. StoreProduct.size): plain value or list ->
+        `__overlap` ("has any of these values"); comparison operators aren't
+        supported there.
     """
     if not filters:
         return queryset
@@ -42,6 +46,16 @@ def apply_filters(queryset, filters: dict | None):
             touches_m2m = True
 
         lookup_base = f"{field_name}__date" if field_name in _DATE_ONLY_FIELDS else field_name
+
+        if isinstance(field, ArrayField):
+            # "has any of these values" - not element-wise comparison, so
+            # range operators (eq/gt/gte/lt/lte) don't apply here.
+            if isinstance(value, dict):
+                raise ValidationError(
+                    {field_name: "Comparison operators are not supported on this field. Pass a value or a list."}
+                )
+            lookups[f"{lookup_base}__overlap"] = value if isinstance(value, list) else [value]
+            continue
 
         if isinstance(value, dict):
             for op, op_value in value.items():

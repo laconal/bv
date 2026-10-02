@@ -104,6 +104,11 @@ class StoreOrderItem(TimestampedModel):
     )
     product_snapshot = models.JSONField(encoder=DjangoJSONEncoder)
 
+    # The one size chosen for this line - a single value, unlike
+    # StoreProduct.size (the product's full list of available sizes).
+    # Null when the product has no sizes to choose from.
+    size = models.IntegerField(null=True, blank=True)
+
     quantity = models.PositiveIntegerField()
     price_type = models.CharField(max_length=20, choices=PriceType.choices)
 

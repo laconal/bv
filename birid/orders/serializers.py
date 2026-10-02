@@ -19,7 +19,7 @@ class StoreOrderItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = StoreOrderItem
         fields = [
-            "id", "product", "product_snapshot", "quantity", "price_type",
+            "id", "product", "product_snapshot", "size", "quantity", "price_type",
             "base_price", "final_price", "applied_discount",
             "created_at", "updated_at",
         ]
@@ -100,6 +100,7 @@ class CustomerOrderCancelSerializer(serializers.ModelSerializer):
 
 class OrderItemCreateSerializer(serializers.Serializer):
     product = serializers.PrimaryKeyRelatedField(queryset=StoreProduct.objects.all())
+    size = serializers.IntegerField(required=False, allow_null=True)
     quantity = serializers.IntegerField(min_value=1)
     price_type = serializers.ChoiceField(choices=PriceType.choices)
 
@@ -134,6 +135,21 @@ class CustomerOrderCreateSerializer(serializers.Serializer):
                 raise serializers.ValidationError({"items": f"Product {product.id} is not available for rental."})
             if price_type == PriceType.TAILORING and product.price_tailoring is None:
                 raise serializers.ValidationError({"items": f"Product {product.id} is not available for tailoring."})
+
+            size = item.get("size")
+            if product.size:
+                if size is None:
+                    raise serializers.ValidationError(
+                        {"items": f"Product {product.id} requires a size. Choose one of: {sorted(product.size)}."},
+                    )
+                if size not in product.size:
+                    raise serializers.ValidationError(
+                        {"items": f"Product {product.id} has no size {size}. Choose one of: {sorted(product.size)}."},
+                    )
+            elif size is not None:
+                raise serializers.ValidationError(
+                    {"items": f"Product {product.id} has no sizes to choose from."},
+                )
         return attrs
 
     def create(self, validated_data):
@@ -148,7 +164,7 @@ class CustomerOrderCreateSerializer(serializers.Serializer):
             StoreOrderItem.objects.create(
                 store=store, order=order, product=product,
                 product_snapshot=PublicProductSerializer(product).data,
-                quantity=item["quantity"], price_type=price_type,
+                size=item.get("size"), quantity=item["quantity"], price_type=price_type,
                 base_price=base_price, final_price=final_price, applied_discount=applied_discount,
             )
         return order

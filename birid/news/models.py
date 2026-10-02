@@ -1,7 +1,7 @@
 from django.db import models
 
 from core.models import TimestampedModel
-from products.models import StoreProduct
+from products.models import StoreProduct, StoreProductPhoto
 from stores.models import Store
 
 
@@ -34,6 +34,13 @@ class StoreNews(TimestampedModel):
     status = models.CharField(max_length=20, choices=NewsStatus.choices, default=NewsStatus.DRAFT)
 
     products = models.ManyToManyField(StoreProduct, related_name="news_items", blank=True)
+
+    # A reference to an already-uploaded StoreProductPhoto - reuses that
+    # model's renditions (large/medium/small WebP, see products/tasks.py's
+    # generate_photo_renditions) instead of a separate image pipeline.
+    image = models.ForeignKey(
+        StoreProductPhoto, on_delete=models.SET_NULL, null=True, blank=True, related_name="news",
+    )
 
     class Meta(TimestampedModel.Meta):
         verbose_name_plural = "store news"

@@ -1,5 +1,5 @@
 from buyers.authentication import BuyerJWTAuthentication
-from django.db.models import F
+from django.db.models import F, Q
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
@@ -20,7 +20,7 @@ from .serializers import PRODUCT_PREFETCH, PublicProductSerializer, with_favorit
     "materials": [1, 2],
     "tags": [1, 2],
     "color": 3,
-    "size": {"gte": 40, "lte": 46},
+    "size": [40, 42],
     "price_sale": {"gte": "1000.00", "lte": "20000.00"},
     "price_rental": {"gte": "0.00"},
     "price_tailoring": {"gte": "0.00"},
@@ -44,7 +44,8 @@ class PublicProductViewSet(PublicReadOnlyViewSet):
 
     def get_queryset(self):
         return with_favorites_count(
-            StoreProduct.objects.filter(store__active=True)
+            StoreProduct.objects.filter(store__active=True, category__visible=True)
+            .filter(Q(subcategory__isnull=True) | Q(subcategory__visible=True))
             .prefetch_related(*PRODUCT_PREFETCH, prefetch_active_discounts())
         )
 

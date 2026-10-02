@@ -27,7 +27,7 @@ class StoreCategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = StoreCategory
         fields = [
-            "id", "name", "parent",
+            "id", "name", "parent", "visible",
             "cover", "cover_processed", "cover_processing_status",
             "created_at", "updated_at",
         ]
@@ -275,10 +275,19 @@ class PublicProductDiscountSerializer(serializers.ModelSerializer):
     description = serializers.CharField(source="discount.description")
     starts_at = serializers.DateTimeField(source="discount.starts_at")
     ends_at = serializers.DateTimeField(source="discount.ends_at")
+    image = serializers.SerializerMethodField()
 
     class Meta:
         model = StoreDiscountProduct
-        fields = ["id", "discount", "title", "description", "discount_type", "value", "starts_at", "ends_at"]
+        fields = [
+            "id", "discount", "title", "description", "discount_type", "value", "starts_at", "ends_at", "image",
+        ]
+
+    @extend_schema_field(StoreProductPhotoSerializer)
+    def get_image(self, obj):
+        if not obj.discount.image_id:
+            return None
+        return StoreProductPhotoSerializer(obj.discount.image).data
 
 
 class PublicProductSerializer(serializers.ModelSerializer):
@@ -334,13 +343,29 @@ class DiscountProductSerializer(serializers.ModelSerializer):
 
 class StoreDiscountSerializer(serializers.ModelSerializer):
     products = DiscountProductSerializer(source="discount_products", many=True, required=False)
+    image = serializers.PrimaryKeyRelatedField(
+        queryset=StoreProductPhoto.objects.all(), required=False, allow_null=True,
+    )
 
     class Meta:
         model = StoreDiscount
         fields = [
-            "id", "title", "description", "starts_at", "ends_at", "status", "products",
+            "id", "title", "description", "starts_at", "ends_at", "status", "products", "image",
             "created_at", "updated_at",
         ]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["image"] = StoreProductPhotoSerializer(instance.image).data if instance.image_id else None
+        return data
+
+    def validate_image(self, value):
+        if value is None:
+            return value
+        request = self.context["request"]
+        if value.store_id != request.user.store_id:
+            raise serializers.ValidationError("Image does not belong to your store.")
+        return value
 
     def validate(self, attrs):
         starts_at = attrs.get("starts_at", getattr(self.instance, "starts_at", None))
@@ -372,3 +397,15 @@ class StoreDiscountSerializer(serializers.ModelSerializer):
                 discount_type=item["discount_type"],
                 value=item["value"],
             )
+
+
+class StoreDiscountResponseSerializer(StoreDiscountSerializer):
+    """
+    Doc-only (never actually instantiated to serialize a response - see
+    products/viewsets.py) - mirrors StoreProductResponseSerializer's reason
+    for existing: `image` is write_only (a plain photo id on input) with its
+    real nested-with-renditions shape injected by to_representation(), which
+    drf-spectacular can't see statically.
+    """
+
+    image = StoreProductPhotoSerializer(read_only=True)

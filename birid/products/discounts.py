@@ -20,7 +20,7 @@ def _active_discount_products_queryset():
         Q(discount__starts_at__isnull=True) | Q(discount__starts_at__lte=now),
     ).filter(
         Q(discount__ends_at__isnull=True) | Q(discount__ends_at__gte=now),
-    ).select_related("discount")
+    ).select_related("discount", "discount__image").prefetch_related("discount__image__renditions")
 
 
 def prefetch_active_discounts() -> Prefetch:
