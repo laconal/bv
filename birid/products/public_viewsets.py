@@ -9,8 +9,8 @@ from rest_framework.response import Response
 from core.viewsets import CREATED_AT_FILTER_EXAMPLE, PublicReadOnlyViewSet, public_tagged
 
 from .discounts import prefetch_active_discounts
-from .models import StoreProduct, StoreProductView
-from .serializers import PRODUCT_PREFETCH, PublicProductSerializer, with_favorites_count
+from .models import StoreCategory, StoreProduct, StoreProductView
+from .serializers import PRODUCT_PREFETCH, PublicProductSerializer, PublicStoreCategorySerializer, with_favorites_count
 
 
 @public_tagged("public-products", PublicProductSerializer, filters_example={
@@ -67,3 +67,28 @@ class PublicProductViewSet(PublicReadOnlyViewSet):
             instance.refresh_from_db(fields=["views"])
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
+
+
+@public_tagged("public-store-categories", PublicStoreCategorySerializer, filters_example={
+    "name": "Платья",
+    "parent": 1,
+    "created_at": CREATED_AT_FILTER_EXAMPLE,
+})
+class PublicStoreCategoryViewSet(PublicReadOnlyViewSet):
+    """
+    Visible categories of one store, addressed as /public/stores/<store_pk>/categories/.
+    Hidden categories and categories of inactive stores are excluded, so they 404
+    on retrieve and are absent from get-all.
+    """
+
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    serializer_class = PublicStoreCategorySerializer
+
+    def get_queryset(self):
+        # drf-spectacular calls this without a store_pk in kwargs; without the guard the schema falls back to "string" ids.
+        if getattr(self, "swagger_fake_view", False):
+            return StoreCategory.objects.none()
+        return StoreCategory.objects.filter(
+            store_id=self.kwargs["store_pk"], store__active=True, visible=True,
+        ).order_by("name")

@@ -7,7 +7,7 @@
 | `/api/v1/stores/` | store admin | `StoreAdminJWTAuthentication` | `login`, `refresh`, `me`, `store` (own profile), `social-links`, `addresses`, `contacts`, `services`, `colors`, `icons`, `categories`, `tags`, `product-material-categories`, `product-materials`, `products`, `product-variants`, `product-photos` (+ `{id}/download`), `discounts`, `news`, `orders` |
 | `/api/v1/stores/reports/` | store admin | same | `summary`, `most-viewed-products`, `most-favorited-products`, `most-popular-categories` (POST, `from_date`/`to_date`, default last 30 days) |
 | `/api/v1/customers/` | buyer | `BuyerJWTAuthentication` | `login`, `refresh`, `me` (GET/PATCH, avatar), `favorites/products/<id>`, `favorites/stores/<id>` (POST add / DELETE remove), `favorites/*/get-all`, `orders` (checkout, list, retrieve, cancel) |
-| `/api/v1/public/` | anyone | none, or buyer token optional on products | `stores`, `products` (+ `products/by-slug/<slug>/`), `news` (read-only) |
+| `/api/v1/public/` | anyone | none, or buyer token optional on products | `stores`, `stores/<store_pk>/categories` (visible categories of one store), `products` (+ `products/by-slug/<slug>/`), `news` (read-only) |
 | `/api/v1/schema/`, `/api/v1/docs/` | — | — | OpenAPI + Swagger UI |
 | `/admin/` | Django staff | session | Django admin (uses Django's built-in `User`, unrelated to API users) |
 

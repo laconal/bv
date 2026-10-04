@@ -338,6 +338,19 @@ class PublicProductSerializer(serializers.ModelSerializer):
         return PublicProductDiscountSerializer(active_discount_products(obj), many=True).data
 
 
+class PublicStoreCategorySerializer(serializers.ModelSerializer):
+    """
+    Storefront view of a category. `visible` and `cover_processing_status` are
+    store-admin concerns (hidden rows never reach this serializer; the status
+    is internal), and `cover` is the raw upload - only the 1000x1000 rendition
+    is public.
+    """
+
+    class Meta:
+        model = StoreCategory
+        fields = ["id", "store", "name", "parent", "cover_processed", "created_at", "updated_at"]
+
+
 class DiscountProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = StoreDiscountProduct
