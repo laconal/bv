@@ -165,6 +165,18 @@ class ProductVariantWriteSerializer(serializers.ModelSerializer):
         return _reject_duplicate_photos(value)
 
 
+class ProductVariantPhotoResponseSerializer(StoreProductPhotoSerializer):
+    """
+    Doc-only: a variant's photo is the photo plus its position in that variant.
+    get_photos() adds `order` to the photo's data; this class is never run for output.
+    """
+
+    order = serializers.IntegerField(read_only=True)
+
+    class Meta(StoreProductPhotoSerializer.Meta):
+        fields = [*StoreProductPhotoSerializer.Meta.fields, "order"]
+
+
 class ProductVariantReadSerializer(serializers.ModelSerializer):
     photos = serializers.SerializerMethodField()
 
@@ -172,12 +184,15 @@ class ProductVariantReadSerializer(serializers.ModelSerializer):
         model = StoreProductVariant
         fields = ["id", "photos", "created_at", "updated_at"]
 
-    @extend_schema_field(StoreProductPhotoSerializer(many=True))
+    @extend_schema_field(ProductVariantPhotoResponseSerializer(many=True))
     def get_photos(self, obj):
         # photo_links is ordered by `order` via StoreProductVariantPhoto.Meta.ordering, prefetched in PRODUCT_PREFETCH.
-        return StoreProductPhotoSerializer(
-            [link.photo for link in obj.photo_links.all()], many=True, context=self.context,
-        ).data
+        photos = []
+        for link in obj.photo_links.all():
+            data = StoreProductPhotoSerializer(link.photo, context=self.context).data
+            data["order"] = link.order
+            photos.append(data)
+        return photos
 
 
 # Every relation StoreProductSerializer/PublicProductSerializer read per
