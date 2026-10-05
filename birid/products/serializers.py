@@ -19,6 +19,7 @@ from .models import (
     StoreProductMaterialCategory,
     StoreProductPhotoRendition,
     StoreProductVariant,
+    StoreProductVariantPhoto,
     StoreTag,
 )
 from .photos import replace_image
@@ -90,7 +91,30 @@ class StoreProductPhotoSerializer(serializers.ModelSerializer):
         read_only_fields = ["original_filename", "processing_status"]
 
 
+def set_variant_photos(variant, photos):
+    """
+    Replaces the variant's photos; the list order becomes each link's `order`.
+    Duplicates are rejected by the serializers' validate_photos, since the
+    (variant, photo) unique constraint would otherwise fail mid-write.
+    """
+    StoreProductVariantPhoto.objects.filter(variant=variant).delete()
+    StoreProductVariantPhoto.objects.bulk_create(
+        StoreProductVariantPhoto(variant=variant, photo=photo, order=position)
+        for position, photo in enumerate(photos)
+    )
+
+
+def _reject_duplicate_photos(value):
+    if len({photo.id for photo in value}) != len(value):
+        raise serializers.ValidationError("The same photo cannot appear twice in one variant.")
+    return value
+
+
 class StoreProductVariantSerializer(serializers.ModelSerializer):
+    # Not the ModelSerializer default: an M2M with a through model is read-only there, and
+    # ids have to come back in `order`, not in the M2M's default order.
+    photos = serializers.PrimaryKeyRelatedField(queryset=StoreProductPhoto.objects.all(), many=True, required=False)
+
     class Meta:
         model = StoreProductVariant
         fields = ["id", "product", "photos", "created_at", "updated_at"]
@@ -106,7 +130,26 @@ class StoreProductVariantSerializer(serializers.ModelSerializer):
         for photo in value:
             if photo.store_id != request.user.store_id:
                 raise serializers.ValidationError("One or more photos do not belong to your store.")
-        return value
+        return _reject_duplicate_photos(value)
+
+    def create(self, validated_data):
+        photos = validated_data.pop("photos", None)
+        variant = super().create(validated_data)
+        if photos is not None:
+            set_variant_photos(variant, photos)
+        return variant
+
+    def update(self, instance, validated_data):
+        photos = validated_data.pop("photos", None)
+        variant = super().update(instance, validated_data)
+        if photos is not None:
+            set_variant_photos(variant, photos)
+        return variant
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["photos"] = [link.photo_id for link in instance.photo_links.all()]
+        return data
 
 
 class ProductVariantWriteSerializer(serializers.ModelSerializer):
@@ -118,19 +161,29 @@ class ProductVariantWriteSerializer(serializers.ModelSerializer):
         model = StoreProductVariant
         fields = ["photos"]
 
+    def validate_photos(self, value):
+        return _reject_duplicate_photos(value)
+
 
 class ProductVariantReadSerializer(serializers.ModelSerializer):
-    photos = StoreProductPhotoSerializer(many=True, read_only=True)
+    photos = serializers.SerializerMethodField()
 
     class Meta:
         model = StoreProductVariant
         fields = ["id", "photos", "created_at", "updated_at"]
 
+    @extend_schema_field(StoreProductPhotoSerializer(many=True))
+    def get_photos(self, obj):
+        # photo_links is ordered by `order` via StoreProductVariantPhoto.Meta.ordering, prefetched in PRODUCT_PREFETCH.
+        return StoreProductPhotoSerializer(
+            [link.photo for link in obj.photo_links.all()], many=True, context=self.context,
+        ).data
+
 
 # Every relation StoreProductSerializer/PublicProductSerializer read per
 # product - list querysets prefetch these so a page of products costs a fixed
 # number of queries instead of several per product.
-PRODUCT_PREFETCH = ("tags", "materials", "variants__photos__renditions")
+PRODUCT_PREFETCH = ("tags", "materials", "variants__photo_links__photo__renditions")
 
 
 def with_favorites_count(queryset):
@@ -205,7 +258,7 @@ class StoreProductSerializer(serializers.ModelSerializer):
             variant = StoreProductVariant.objects.create(store=product.store, product=product)
             photos = variant_data.get("photos")
             if photos:
-                variant.photos.set(photos)
+                set_variant_photos(variant, photos)
         return product
 
     def update(self, instance, validated_data):

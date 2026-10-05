@@ -129,7 +129,7 @@ class StoreProductViewSet(StoreScopedModelViewSet):
     "created_at": CREATED_AT_FILTER_EXAMPLE,
 })
 class StoreProductVariantViewSet(StoreScopedModelViewSet):
-    queryset = StoreProductVariant.objects.prefetch_related("photos")
+    queryset = StoreProductVariant.objects.prefetch_related("photo_links__photo")
     serializer_class = StoreProductVariantSerializer
 
 

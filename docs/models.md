@@ -29,7 +29,8 @@ erDiagram
     StoreProduct }o--o{ StoreProductMaterial : materials
     StoreProduct ||--o{ StoreProductView : view_events
     StoreProduct ||--o{ StoreProductVariant : variants
-    StoreProductVariant }o--o{ StoreProductPhoto : photos
+    StoreProductVariant ||--o{ StoreProductVariantPhoto : photo_links
+    StoreProductPhoto ||--o{ StoreProductVariantPhoto : variant_links
     StoreProductPhoto ||--o{ StoreProductPhotoRendition : renditions
 
     StoreDiscount ||--o{ StoreDiscountProduct : discount_products
@@ -82,7 +83,8 @@ Public store endpoint only shows `visible=True` social links/services (prefetche
 | `StoreProductView` | one row per authenticated-buyer view; enables date-ranged "most viewed" reports. Only buyers count (not anonymous, not admins). |
 | `StoreProductPhoto` | `uuid` (storage key), `image` (original), `original_filename`, `processing_status`. Store-scoped, **not tied to one product** — reused by variants, discounts, news. |
 | `StoreProductPhotoRendition` | `photo` FK, `quality` (`large`/`medium`/`small`), `image`. Unique (photo, quality). Created only by the Celery task. |
-| `StoreProductVariant` | FK `product`, M2M `photos` (same photo can appear in several variants). Photos are reached through variants: `product.variants.photos.renditions`. |
+| `StoreProductVariant` | FK `product`, M2M `photos` through `StoreProductVariantPhoto` (same photo can appear in several variants). Photos are reached through variants: `product.variants.photos.renditions`. |
+| `StoreProductVariantPhoto` | through row: FK `variant`, FK `photo`, `order` (position of the photo within that variant). Unique per (variant, photo). Read in `order` via `variant.photo_links`. |
 | `StoreDiscount` | `title`, `description`, optional `starts_at`/`ends_at`, `status` (draft/active/archived), M2M `products` through `StoreDiscountProduct`, optional FK `image` → `StoreProductPhoto` (SET_NULL). |
 | `StoreDiscountProduct` | per-product `discount_type` (`fixed_amount`/`percentage`) + `value`. Unique (discount, product). |
 

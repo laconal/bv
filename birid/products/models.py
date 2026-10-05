@@ -252,17 +252,40 @@ class StoreProductVariant(TimestampedModel):
     """
     A photo set variant of a product (e.g. different angles/looks). `photos`
     is many-to-many rather than a plain FK on Photo, since the same uploaded
-    photo can be reused across more than one variant.
+    photo can be reused across more than one variant. The through model holds
+    each photo's position within this variant.
     """
 
     ALLOWED_FILTERS = {"product", "created_at"}
 
     store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name="product_variants")
     product = models.ForeignKey(StoreProduct, on_delete=models.CASCADE, related_name="variants")
-    photos = models.ManyToManyField(StoreProductPhoto, related_name="variants", blank=True)
+    photos = models.ManyToManyField(
+        StoreProductPhoto, through="StoreProductVariantPhoto", related_name="variants", blank=True,
+    )
 
     def __str__(self) -> str:
         return f"Variant #{self.id} of {self.product_id}"
+
+
+class StoreProductVariantPhoto(models.Model):
+    """
+    Through row for StoreProductVariant.photos. `order` is per variant: the same
+    photo can be first in one variant and third in another.
+    """
+
+    variant = models.ForeignKey(StoreProductVariant, on_delete=models.CASCADE, related_name="photo_links")
+    photo = models.ForeignKey(StoreProductPhoto, on_delete=models.CASCADE, related_name="variant_links")
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["order", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["variant", "photo"], name="uniq_photo_per_variant"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.variant_id}:{self.photo_id}@{self.order}"
 
 
 class DiscountType(models.TextChoices):
